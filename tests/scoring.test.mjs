@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {scoreQuestion,publicQuestion} from '../lib/scoring.mjs';
+test('single response',()=>{assert.deepEqual(scoreQuestion({type:'single',answer_key:'b'},'b'),{earned:1,possible:1});assert.equal(scoreQuestion({type:'single',answer_key:'b'},'a').earned,0)});
+test('SATA plus minus floors at zero',()=>{const q={type:'sata',answer_key:['a','b','c']};assert.deepEqual(scoreQuestion(q,['a','b','x']),{earned:1,possible:3});assert.equal(scoreQuestion(q,['x','y']).earned,0);assert.equal(scoreQuestion(q,['a','b','c']).earned,3)});
+test('matrix rows are independent',()=>{const q={type:'matrix',matrix_rows:[{id:'r1'},{id:'r2'}],answer_key:{r1:'yes',r2:'no'}};assert.deepEqual(scoreQuestion(q,{r1:'yes',r2:'yes'}),{earned:1,possible:2})});
+test('question view hides solutions',()=>{const q=publicQuestion({id:'1',answer_key:'b',rationale:'reason',stem:'hello'});assert.equal('answer_key' in q,false);assert.equal('rationale' in q,false)});
