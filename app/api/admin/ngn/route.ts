@@ -62,7 +62,7 @@ export async function PATCH(req:NextRequest){
   if(status!=='approved')return NextResponse.json({error:'Approve this record before publishing'},{status:400});
   if(body.kind==='item'){
    const {data:parent}=await db.from('ngn_cases').select('review_status').eq('id',old.case_id).single();
-   if(parent?.review_status!=='approved')return NextResponse.json({error:'Approve the parent case before publishing its items'},{status:400});
+   // Item publication is allowed before case approval; case remains invisible until approved and published.
   }
   if(body.kind==='case'){
    const {data:list}=await db.from('ngn_items').select('id,review_status,published').eq('case_id',body.id);
