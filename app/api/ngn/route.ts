@@ -6,7 +6,7 @@ export async function GET(){
  const db=await createClient();
  const {data:{user}}=await db.auth.getUser();
  if(!user)return NextResponse.json({error:'Sign in required'},{status:401});
- const {data:cases,error}=await db.from('ngn_cases').select('id,case_number,topic,title,intro,tabs').eq('published',true).order('case_number');
+ const {data:cases,error}=await db.from('ngn_cases').select('id,case_number,topic,intro,tabs').eq('published',true).order('case_number');
  if(error)return NextResponse.json({error:error.message},{status:500});
  const ids=(cases??[]).map(c=>c.id);
  if(!ids.length)return NextResponse.json({cases:[],items:[]});
