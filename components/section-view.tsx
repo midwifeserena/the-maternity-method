@@ -11,7 +11,134 @@ export function SectionView({section,email,lessons,guides,history}:{section:stri
  {section==='dashboard'&&<><div className="grid md:grid-cols-3 gap-4 mb-9">{[{name:'Practice questions',value:'OB-focused',icon:BrainCircuit},{name:'Completed exams',value:String(attempts.length),icon:ClipboardCheck},{name:'Best study practice',value:'One step at a time',icon:TrendingUp}].map(({name,value,icon:Icon})=><div className="surface p-6" key={name}><Icon className="text-mauve mb-5" size={24}/><p className="text-2xl font-display">{value}</p><p className="mt-1 text-xs text-espresso/60">{name}</p></div>)}</div><h2 className="text-2xl mb-5">Where shall we begin?</h2><div className="grid md:grid-cols-2 gap-4"><Link href="/question-bank" className="surface p-7 hover:border-mauve"><div className="flex justify-between"><BookOpen className="text-mauve"/><ArrowUpRight className="text-mauve"/></div><h3 className="text-2xl mt-7">Practice questions</h3><p className="mt-2 text-sm text-espresso/65">Build confidence with thoughtful feedback and rationales.</p></Link><Link href="/ngn-case-studies" className="surface p-7 hover:border-mauve"><div className="flex justify-between"><ClipboardCheck className="text-mauve"/><ArrowUpRight className="text-mauve"/></div><h3 className="text-2xl mt-7">NGN clinical reasoning</h3><p className="mt-2 text-sm text-espresso/65">Work through real-world patient charts and matrix items.</p></Link></div></>}
  {['question-bank','create-exam'].includes(section)&&<QuestionBuilder initialMode={section==='create-exam'?'test':'study'}/>}
  {section==='ngn-case-studies'&&<><Picker value={category} setValue={setCategory}/><Exam key={category} category={category} initialMode="study"/></>}
- {section==='video-lessons'&&<><Picker value={category} setValue={setCategory}/><div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">{(lessons as Lesson[]).filter(v=>category==='All'||v.category===category).map(l=><article className="surface overflow-hidden" key={l.id}><div className="aspect-video bg-blush flex items-center justify-center"><Play className="text-mauve" size={34}/></div><div className="p-6"><span className="pill">{l.category}</span><h2 className="text-2xl mt-4">{l.title}</h2><p className="text-sm text-espresso/65 mt-2 mb-5">{l.description}</p><a className="btn-outline inline-flex" href={l.video_url} target="_blank" rel="noopener noreferrer">Watch lesson ↗</a></div></article>)}</div>{!lessons.length&&<p className="surface p-8">Your lesson library is ready for your first published videos.</p>}</>}
+{section === 'video-lessons' && <>
+  <Picker value={category} setValue={setCategory} />
+
+  <div className="space-y-6">
+    {(lessons as Lesson[])
+      .filter(l => category === 'All' || l.category === category)
+      .map(l => {
+        let watchUrl: string | null = null;
+        let embedUrl: string | null = null;
+        let directFile = false;
+
+        try {
+          const url = new URL(l.video_url);
+
+          if (
+            url.protocol === 'https:' &&
+            !url.username &&
+            !url.password
+          ) {
+            watchUrl = url.href;
+
+            const host = url.hostname;
+            const parts = url.pathname.split('/').filter(Boolean);
+
+            if (
+              ['youtu.be', 'youtube.com', 'www.youtube.com',
+               'm.youtube.com', 'www.youtube-nocookie.com']
+                .includes(host)
+            ) {
+              const id = host === 'youtu.be'
+                ? parts[0]
+                : parts[0] === 'watch'
+                  ? url.searchParams.get('v')
+                  : ['embed', 'shorts', 'live'].includes(parts[0])
+                    ? parts[1]
+                    : null;
+
+              if (id && /^[\w-]{11}$/.test(id)) {
+                embedUrl =
+                  'https://www.youtube-nocookie.com/embed/' +
+                  id + '?rel=0';
+              }
+            }
+
+            if (
+              ['vimeo.com', 'www.vimeo.com', 'player.vimeo.com']
+                .includes(host)
+            ) {
+              const id = host === 'player.vimeo.com'
+                ? parts[1]
+                : parts[0];
+
+              if (id && /^\d+$/.test(id)) {
+                const player = new URL(
+                  'https://player.vimeo.com/video/' + id
+                );
+
+                const hash = url.searchParams.get('h') ||
+                  (host !== 'player.vimeo.com' ? parts[1] : null);
+
+                if (hash && /^[a-zA-Z0-9]+$/.test(hash)) {
+                  player.searchParams.set('h', hash);
+                }
+
+                player.searchParams.set('dnt', '1');
+                embedUrl = player.href;
+              }
+            }
+
+            directFile =
+              /\.(mp4|webm|ogv|ogg|m4v)$/i.test(url.pathname);
+          }
+        } catch {
+          // Show an unavailable message for an invalid link.
+        }
+
+        return (
+          <article key={l.id} className="surface overflow-hidden">
+            {embedUrl ? (
+              <iframe
+                src={embedUrl}
+                title={l.title + ' lesson video'}
+                className="aspect-video w-full border-0 bg-black"
+                loading="lazy"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            ) : directFile && watchUrl ? (
+              <video
+                src={watchUrl}
+                controls
+                playsInline
+                preload="metadata"
+                aria-label={l.title}
+                className="aspect-video w-full bg-black"
+              />
+            ) : (
+              <div className="aspect-video bg-blush flex items-center justify-center">
+                <Play className="text-mauve" size={34} />
+              </div>
+            )}
+
+            <div className="p-6">
+              <span className="pill">{l.category}</span>
+              <h2 className="text-2xl mt-4">{l.title}</h2>
+              <p className="text-sm text-espresso/65 mt-2 mb-5">
+                {l.description}
+              </p>
+
+              {watchUrl ? (
+                <a
+                  className="btn-outline inline-flex"
+                  href={watchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open video in a new tab ↗
+                </a>
+              ) : (
+                <p>Video currently unavailable.</p>
+              )}
+            </div>
+          </article>
+        );
+      })}
+  </div>
+</>}
  {section==='study-guides'&&<><Picker value={category} setValue={setCategory}/><div className="grid md:grid-cols-2 gap-4">{(guides as Guide[]).filter(g=>category==='All'||g.category===category).map(g=><article className="surface p-6" key={g.id}><span className="pill">{g.category}</span><h2 className="text-2xl mt-4">{g.title}</h2><p className="text-sm my-4 text-espresso/65">{g.description}</p><a target="_blank" rel="noopener noreferrer" href={g.file_url} className="btn-outline inline-flex items-center gap-2"><Download size={16}/>Preview / Download</a></article>)}</div>{!guides.length&&<p className="surface p-8">Add your first cheat sheets through Supabase to populate this library.</p>}</>}
  {section==='flashcards'&&<div className="surface p-9 max-w-xl"><span className="pill">Coming in a future build</span><h2 className="text-3xl mt-4">Little cards. Big confidence.</h2><p className="mt-4 text-espresso/70">The flashcard workspace is reserved in your navigation. Spaced repetition and editable decks are not implemented in this scaffold.</p></div>}
  {section==='previous-tests'&&<div className="surface p-6"><h2 className="text-2xl mb-5">Recent completed sessions</h2>{attempts.length?<div className="space-y-3">{attempts.map(a=><div key={a.id} className="border-b border-rose/30 pb-3 flex justify-between gap-4"><div><p className="font-semibold capitalize">{a.mode} session</p><p className="text-xs mt-1 text-espresso/60">{new Date(a.completed_at).toLocaleString()}</p></div><p className="text-mauve font-bold">{a.earned}/{a.possible} pts</p></div>)}</div>:<p className="text-espresso/60">Completed tests will appear here.</p>}</div>}
