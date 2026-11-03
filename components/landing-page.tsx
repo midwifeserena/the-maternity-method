@@ -1,7 +1,7 @@
 'use client';
 import {useState} from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import {StorkLogo} from './stork-logo';
 import {Heart,ArrowRight,Check,ClipboardList,Stethoscope,PlayCircle,BookOpen,TrendingUp,Menu,X,ChevronDown,Flag} from 'lucide-react';
 import './landing.css';
 const features=[
