@@ -45,3 +45,5 @@ Chromium uses actual exam/review components with isolated APIs: optional images 
 ## Staging check before deployment
 
 Add one image-bearing question with a protected rationale image and tip, plus one image-free question. Start a Study test: only its question image should be visible until submitting the answer. Confirm the explanation image/tip then appear with the original score. Complete a Timed test: no private education appears before submission. Open Previous Tests, inspect both reviews, then edit current education and verify previously archived exams retain their saved version. Check phone layout and alt text. A student attempting `/admin/questions` or its APIs must be rejected.
+
+Additional build verification: the exact proposed source passed Next.js route generation, TypeScript and an offline webpack production build using Next's Google Font test fixtures backed by a local system font. This verifies compilation and route output without changing the application's font configuration. A normal build fetching the actual Google Fonts remains unverified in this restricted network environment.

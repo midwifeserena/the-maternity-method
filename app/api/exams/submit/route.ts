@@ -33,7 +33,7 @@ export async function POST(request:NextRequest){
   return NextResponse.json({...data,reviewSnapshotAvailable:true},{headers:{'Cache-Control':'no-store'}});
  }
  // Migration not installed: preserve the existing submission behavior and history.
- const {data:questions,error}=await db.from('questions').select('id,type,matrix_rows').eq('published',true).in('id',ids);
+ const {data:questions,error}=await db.from('questions').select('*').eq('published',true).in('id',ids);
  if(error||!questions||questions.length!==ids.length)return NextResponse.json({error:'One or more questions unavailable'},{status:400});
  const {data:solutions,error:solutionError}=await admin().from('question_solutions').select('question_id,answer_key').in('question_id',ids);
  if(solutionError||!solutions||solutions.length!==ids.length)return NextResponse.json({error:'Solutions unavailable'},{status:500});

@@ -5,6 +5,8 @@ import ts from 'typescript';
 import * as review from '../lib/exam-review.mjs';
 import * as scoring from '../lib/scoring.mjs';
 import * as education from '../lib/question-education.mjs';
+import * as matrix from '../lib/matrix.mjs';
+import * as matrixAuthoring from '../lib/matrix-authoring.mjs';
 const owner='10000000-0000-0000-0000-000000000001',other='10000000-0000-0000-0000-000000000002',id='30000000-0000-0000-0000-000000000001',qid='20000000-0000-0000-0000-000000000001';
 const original={id:qid,type:'single',category:'Antepartum',stem:'Original archived question',options:[{id:'a',label:'Original A'},{id:'b',label:'B'}],matrix_rows:[]};
 const attempt={id,user_id:owner,mode:'study',earned:0,possible:0,question_count:1,snapshot_stage:'start',completed_at:null};
@@ -12,6 +14,8 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
  const calls=[],writes=[];
  function client(privileged=false){return {storage:{from(){return {createSignedUrls:async paths=>({data:paths.map(path=>({path,signedUrl:'https://example.test/signed/'+path})),error:null}),createSignedUrl:async path=>({data:{signedUrl:'https://example.test/signed/'+path},error:null}),upload:async(path,bytes,options)=>{writes.push({upload:path,size:bytes.length,options});return {data:{path},error:null}}}}},auth:{getUser:async()=>({data:{user:user?{id:user}:null}})},rpc:async(name,args)=>{
   calls.push({rpc:name,privileged,args});
+  if(name==='create_matrix_question'){assert(privileged);writes.push(args);return {data:qid,error:null}}
+  if(name==='edit_matrix_question'){assert(privileged);writes.push(args);return {data:null,error:null}}
   if(name==='edit_question_education'){assert(privileged);writes.push(args);return {data:null,error:null}}
   if(name==='start_exam_review_attempt')return missing?{data:null,error:{code:'PGRST202'}}:{data:{attemptId:id,questions:[original]},error:null};
   assert(privileged);assert.equal(name,'complete_exam_review_attempt');writes.push(args);const row=attempts.find(a=>a.id===args.p_attempt_id);row.completed_at='2026-11-04';row.earned=args.p_responses.reduce((n,r)=>n+r.earned,0);row.possible=args.p_responses.reduce((n,r)=>n+r.possible,0);return {data:{attemptId:id,earned:row.earned,possible:row.possible},error:null};
@@ -28,6 +32,9 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
    if(name==='@/lib/exam-review.mjs')return review;
    if(name==='@/lib/scoring.mjs')return scoring;
    if(name==='@/lib/ngn-admin-auth')return {requireNgnAdmin:async()=>administrator&&user?{id:user}:null};
+   if(name==='@/lib/matrix.mjs')return matrix;
+   if(name==='@/lib/matrix-authoring.mjs')return matrixAuthoring;
+   if(name==='@/lib/questions')return {categories:['Antepartum','Intrapartum','Postpartum','Newborn']};
    if(name==='@/lib/question-education.mjs')return education;
    if(name==='@/lib/question-media-server')return load('lib/question-media-server.ts');
    if(name==='@/lib/exam-review-server')return load('lib/exam-review-server.ts');
@@ -109,4 +116,32 @@ test('uploads use immutable private object references and reject executable imag
  const upload=file=>{const form=new FormData();form.set('questionId',qid);form.set('kind','rationale');form.set('file',file);return new Request('https://example.test',{method:'POST',body:form})};
  assert.equal((await api.POST(upload(new File(['<svg onload="alert(1)"></svg>'],'evil.svg',{type:'image/svg+xml'})))).status,400);
  const png=new File([new Uint8Array([137,80,78,71,13,10,26,10,0,0])],'example.png',{type:'image/png'});const response=await api.POST(upload(png)),data=await response.json();assert.equal(response.status,200);assert.match(data.reference,new RegExp('^storage://question-media/'+qid+'/rationale/'));assert.equal(h.writes[0].options.upsert,false);assert.equal(h.writes[0].options.contentType,'image/png');
+});
+
+const matrixQuestion={...original,type:'matrix',matrix_mode:'multiple',options:[{id:'a',label:'Appropriate'},{id:'b',label:'Monitor'},{id:'c',label:'Avoid'}],matrix_rows:[{id:'r1',label:'Assess the patient'},{id:'r2',label:'Notify the clinician'}]};
+const matrixSolution={answer_key:{r1:['a','b'],r2:['a']},rationale:'Overall matrix rationale',row_explanations:{r1:'Assessment establishes priorities.',r2:'Escalate concerning findings.'}};
+const matrixEdit={...matrixQuestion,answer_key:matrixSolution.answer_key,rationale:matrixSolution.rationale,row_explanations:matrixSolution.row_explanations};delete matrixEdit.id;delete matrixEdit.type;delete matrixEdit.category;
+test('matrix multiple-response submissions persist all selections and frozen-key partial points',async()=>{
+ const rows=[{attempt_id:id,question_id:qid,position:1,question_snapshot:matrixQuestion,solution_snapshot:matrixSolution}],answer={r1:['a','b','c'],r2:['a']};
+ const h=harness({snapshots:rows}),result=await h.load('app/api/exams/submit/route.ts').POST(post('',{...payload,answers:{[qid]:answer}}));const data=await result.json();assert.equal(result.status,200);assert.equal(data.earned,2);assert.equal(data.possible,3);assert.deepEqual(h.writes[0].p_responses[0].response,answer);
+ const completed=harness({attempts:[{...attempt,completed_at:'2026-11-04',earned:2,possible:3}],snapshots:rows,responses:[{id:'r',user_id:owner,attempt_id:id,question_id:qid,response:answer,earned:2,possible:3}]});
+ const review=await reviewRequest(completed),saved=await review.json();assert.equal(saved.items[0].question.matrix_mode,'multiple');assert.deepEqual(saved.items[0].response,answer);assert.equal(saved.items[0].rowExplanations.r1,matrixSolution.row_explanations.r1);assert.equal(saved.items[0].status,'partial');assert.equal(completed.writes.length,0);
+});
+test('permitted matrix study reveal returns protected row explanations and keeps timed feedback blocked',async()=>{
+ const h=harness({snapshots:[{attempt_id:id,question_id:qid,position:1,question_snapshot:matrixQuestion,solution_snapshot:matrixSolution}]});
+ const checked=await h.load('app/api/study/check/route.ts').POST(post('',{questionId:qid,attemptId:id,answer:{r1:['a'],r2:['a']}})),data=await checked.json();assert.equal(data.earned,2);assert.equal(data.possible,3);assert.deepEqual(data.row_explanations,matrixSolution.row_explanations);
+ const publicView=review.publicSnapshot({...matrixQuestion,row_explanations:matrixSolution.row_explanations,matrix_rows:[{id:'r1',label:'Finding',explanation:'Should never be public'}]});assert(!JSON.stringify(publicView).includes('Should never'));assert(!('row_explanations' in publicView));
+});
+test('only admins create validated draft matrices and explicitly publish; edits do not touch scoring history',async()=>{
+ const denied=harness();assert.equal((await denied.load('app/api/admin/questions/route.ts').POST(post('',{category:'Antepartum',matrix:matrixEdit}))).status,403);assert.equal(denied.writes.length,0);
+ const h=harness({administrator:true,liveQuestions:[{...matrixQuestion,published:true}],liveSolutions:[{question_id:qid,...matrixSolution}]}),api=h.load('app/api/admin/questions/route.ts');
+ const created=await api.POST(post('',{category:'Antepartum',matrix:matrixEdit}));assert.equal(created.status,201);assert.equal(h.writes[0].p_question.published,false);
+ assert.equal((await api.PATCH(post('',{id:qid,matrix:matrixEdit}))).status,200);assert.equal(h.writes[1].p_question.published,false);
+ assert.equal((await api.PATCH(post('',{id:qid,matrixAction:'publish'}))).status,200);assert.deepEqual(h.writes[2].p_question,{published:true});assert.deepEqual(h.writes[2].p_solution,{});assert.equal(h.attempts[0].earned,0);
+ assert.equal((await api.POST(post('',{category:'Antepartum',matrix:{...matrixEdit,answer_key:{r1:[],r2:['a']}}}))).status,400);
+});
+
+test('private media signing never transforms stored responses, answer identifiers, rationale text or alt text',async()=>{
+ const h=harness(),uri='storage://question-media/q/reference.png',source={question_image_url:uri,question_image_alt:uri,stem:uri,answer_key:uri,response:uri,nursing_tip:uri,options:[{id:uri,label:'Original',images:[{url:uri,alt:'Diagram'}]}]};
+ const [resolved]=await h.load('lib/question-media-server.ts').resolveMediaRecords([source]);assert.match(resolved.question_image_url,/signed/);assert.match(resolved.options[0].images[0].url,/signed/);assert.equal(resolved.options[0].id,uri);assert.equal(resolved.question_image_alt,uri);assert.equal(resolved.stem,uri);assert.equal(resolved.answer_key,uri);assert.equal(resolved.response,uri);assert.equal(resolved.nursing_tip,uri);assert.equal(source.question_image_url,uri);assert.equal(h.writes.length,0);
 });

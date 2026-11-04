@@ -20,7 +20,7 @@ export async function POST(request:NextRequest){
   const solution=item.solution_snapshot;
   return NextResponse.json({...scoreQuestion({...item.question_snapshot,answer_key:solution.answer_key},body.answer),rationale:solution.rationale,answer_key:solution.answer_key,...await educationFeedback(solution)},{headers:{'Cache-Control':'no-store'}});
  }
- const {data:question,error}=await db.from('questions').select('id,type,matrix_rows').eq('id',body.questionId).eq('published',true).single();
+ const {data:question,error}=await db.from('questions').select('*').eq('id',body.questionId).eq('published',true).single();
  if(error||!question)return NextResponse.json({error:'Question not found'},{status:404});
  const {data:solution}=await admin().from('question_solutions').select('*').eq('question_id',question.id).single();
  if(!solution)return NextResponse.json({error:'Solution unavailable'},{status:500});

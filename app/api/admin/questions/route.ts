@@ -1,3 +1,5 @@
+import {matrixDefinition} from '@/lib/matrix-authoring.mjs';
+import {categories} from '@/lib/questions';
 import {NextRequest,NextResponse} from 'next/server';
 import {requireNgnAdmin} from '@/lib/ngn-admin-auth';
 import {admin} from '@/lib/supabase/admin';
@@ -28,6 +30,7 @@ export async function PATCH(request:NextRequest){
  if(!await requireNgnAdmin())return deny();
  const body=await request.json().catch(()=>null);
  if(!validExamId(body?.id))return NextResponse.json({error:'Invalid question ID'},{status:400});
+ if(Object.hasOwn(body,'matrix')||Object.hasOwn(body,'matrixAction')){if(body.fields)return NextResponse.json({error:'Save matrix content and education separately.'},{status:400});return editMatrix(body)}
  let patch;try{patch=educationPatch(body.fields)}catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Invalid edit'},{status:400})}
  const db=admin();
  const [question,solution]=await Promise.all([db.from('questions').select('*').eq('id',body.id).maybeSingle(),db.from('question_solutions').select('*').eq('question_id',body.id).maybeSingle()]);
@@ -40,4 +43,31 @@ export async function PATCH(request:NextRequest){
  const {error}=await db.rpc('edit_question_education',{p_question_id:body.id,p_question:patch.question,p_solution:patch.solution});
  if(error)return NextResponse.json({error:'Could not save education fields. Check the question education migration is installed.'},{status:500});
  return NextResponse.json({saved:true},{headers:{'Cache-Control':'no-store'}});
+}
+
+async function editMatrix(body:{id:string;matrix?:unknown;matrixAction?:string}){
+ const db=admin();
+ const [question,solution]=await Promise.all([db.from('questions').select('*').eq('id',body.id).maybeSingle(),db.from('question_solutions').select('*').eq('question_id',body.id).maybeSingle()]);
+ if(question.error||solution.error)return NextResponse.json({error:'Could not load matrix.'},{status:500});
+ if(question.data?.type!=='matrix'||!solution.data)return NextResponse.json({error:'Matrix question not found.'},{status:404});
+ let patch;
+ try{
+  if(body.matrixAction){
+   if(!['publish','unpublish'].includes(body.matrixAction)||body.matrix)throw Error('Invalid publication action.');
+   if(body.matrixAction==='publish')matrixDefinition({stem:question.data.stem,options:question.data.options,matrix_rows:question.data.matrix_rows,matrix_mode:question.data.matrix_mode??'single',answer_key:solution.data.answer_key,rationale:solution.data.rationale,row_explanations:solution.data.row_explanations??{}});
+   patch={question:{published:body.matrixAction==='publish'},solution:{}};
+  }else patch=matrixDefinition(body.matrix);
+ }catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Invalid matrix'},{status:400})}
+ const {error}=await db.rpc('edit_matrix_question',{p_question_id:body.id,p_question:patch.question,p_solution:patch.solution});
+ if(error)return NextResponse.json({error:'Could not save matrix. Check the matrix migration is installed.'},{status:500});
+ return NextResponse.json({saved:true,published:patch.question.published},{headers:{'Cache-Control':'no-store'}});
+}
+export async function POST(request:NextRequest){
+ if(!await requireNgnAdmin())return deny();
+ const body=await request.json().catch(()=>null);
+ if(!body||!categories.some(category=>category===body.category))return NextResponse.json({error:'Choose a supported category.'},{status:400});
+ let patch;try{patch=matrixDefinition(body.matrix)}catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Invalid matrix'},{status:400})}
+ const {data,error}=await admin().rpc('create_matrix_question',{p_category:body.category,p_question:patch.question,p_solution:patch.solution});
+ if(error)return NextResponse.json({error:'Could not create matrix. Check the matrix migration is installed.'},{status:500});
+ return NextResponse.json({id:data,published:false},{status:201,headers:{'Cache-Control':'no-store'}});
 }
