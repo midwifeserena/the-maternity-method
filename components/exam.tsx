@@ -1,21 +1,161 @@
 'use client';
-import {useCallback,useEffect,useState} from 'react';
+import {useCallback,useEffect,useRef,useState,type CSSProperties} from 'react';
 import {useRouter} from 'next/navigation';
+import {Bookmark,Calculator,Check,ChevronLeft,ChevronRight,Clock,Highlighter,ListChecks,LogOut,Pause,Play,Settings,Strikethrough,X} from 'lucide-react';
+import {calculateExpression,formatExamTime,isQuestionAnswered} from '@/lib/exam-tools.mjs';
 import type {Question,Category} from '@/lib/questions';
-type Mode='study'|'test';type Answer=string|string[]|Record<string,string>;
-function displayTime(s:number){return `${Math.floor(s/3600).toString().padStart(2,'0')}:${Math.floor(s%3600/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`}
-export function Exam({category='All',initialMode='study',selectedIds}:{category?:Category|'All';initialMode?:Mode;selectedIds?:string[]}){
- const router=useRouter();const [mode,setMode]=useState<Mode>(initialMode),[items,setItems]=useState<Question[]>([]),[index,setIndex]=useState(0),[answers,setAnswers]=useState<Record<string,Answer>>({}),[feedback,setFeedback]=useState<Record<string,{earned:number;possible:number;rationale:string;answer_key:unknown}>>({}),[loading,setLoading]=useState(true),[message,setMessage]=useState(''),[seconds,setSeconds]=useState(30*60),[paused,setPaused]=useState(false),[flagged,setFlagged]=useState<string[]>([]),[highlight,setHighlight]=useState(false),[strike,setStrike]=useState<string[]>([]),[tab,setTab]=useState('Nurses’ Notes'),[result,setResult]=useState<{earned:number;possible:number}|null>(null);
- useEffect(()=>{let disposed=false;async function load(){setLoading(true);setMessage('');setIndex(0);setAnswers({});setFeedback({});setResult(null);setSeconds(1800);const res=await fetch(`/api/questions?category=${encodeURIComponent(category)}`,{cache:'no-store'});const data=await res.json();if(!disposed){if(!res.ok)setMessage(data.error??'Could not load questions');setItems(selectedIds?(data.questions??[]).filter((q:Question)=>selectedIds.includes(q.id)).sort((a:Question,b:Question)=>selectedIds.indexOf(a.id)-selectedIds.indexOf(b.id)):(data.questions??[]));setLoading(false)}}void load();return()=>{disposed=true}},[category,selectedIds]);
- const finish=useCallback(async()=>{if(result)return;setPaused(true);setMessage('Submitting…');const r=await fetch('/api/exams/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,questionIds:items.map(q=>q.id),answers,durationSeconds:1800-seconds})});const data=await r.json();if(r.ok){setResult(data);setMessage('')}else{setMessage(data.error??'Submission failed');setPaused(false)}},[answers,items,mode,result,seconds]);
- useEffect(()=>{if(mode!=='test'||paused||result||loading||items.length===0)return;const id=window.setInterval(()=>setSeconds(v=>Math.max(0,v-1)),1000);return()=>window.clearInterval(id)},[mode,paused,result,loading,items.length]);
- useEffect(()=>{if(mode==='test'&&seconds===0&&items.length&&!result&&!paused)void finish()},[seconds,mode,items.length,result,paused,finish]);
- const q=items[index],answer=q?answers[q.id]:undefined,fb=q?feedback[q.id]:undefined;
- function setAnswer(value:Answer){if(!q||fb)return;setAnswers(prev=>({...prev,[q.id]:value}))}
- async function check(){if(!q||answer===undefined)return;setMessage('');const res=await fetch('/api/study/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:q.id,answer})});const data=await res.json();if(res.ok)setFeedback(p=>({...p,[q.id]:data}));else setMessage(data.error??'Could not check answer')}
- if(loading)return <div className="surface p-10">Loading maternity questions…</div>;
- if(!items.length)return <div className="surface p-10"><h2 className="text-2xl">No questions available yet</h2><p className="mt-3">{message||'Run the seed SQL in Supabase or publish your own questions.'}</p></div>;
- if(result)return <div className="surface p-10 max-w-2xl"><span className="pill">Exam submitted</span><h2 className="text-4xl mt-5">Your results</h2><p className="text-5xl font-display mt-5">{result.possible?Math.round(result.earned/result.possible*100):0}%</p><p className="mt-2 text-espresso/70">{result.earned} of {result.possible} available points</p><p className="mt-5">Your attempt is saved to Previous Tests and Performance.</p><button className="btn-primary mt-6" onClick={()=>router.push('/previous-tests')}>View previous tests</button></div>;
- const chart=q.chart||{};const chartTabs=['Nurses’ Notes','Vital Signs','Lab Results','Provider Orders'];
- return <div className="space-y-5"><div className="surface p-4 md:p-5 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="pill">{q.category}</span><span className="text-sm text-espresso/65">Question {index+1} of {items.length}</span></div><div className="flex items-center gap-2"><button className={`btn-outline text-xs ${mode==='study'?'bg-blush':''}`} onClick={()=>{setMode('study');setPaused(false)}} disabled={Object.keys(answers).length>0}>Study</button><button className={`btn-outline text-xs ${mode==='test'?'bg-blush':''}`} onClick={()=>{setMode('test');setPaused(false)}} disabled={Object.keys(answers).length>0}>Test</button>{mode==='test'&&<><span className="font-mono font-semibold text-mauve px-2" aria-label="Time remaining">{displayTime(seconds)}</span><button className="btn-outline text-xs" onClick={()=>setPaused(!paused)}>{paused?'Resume':'Pause'}</button></>}</div></div><div className="h-1.5 rounded-full bg-blush overflow-hidden"><div className="h-full bg-mauve" style={{width:`${(index+1)/items.length*100}%`}}/></div><div className="flex flex-wrap gap-2"><button className="btn-outline text-sm" onClick={()=>setHighlight(!highlight)} aria-pressed={highlight}>Highlight {highlight?'on':'off'}</button><button className="btn-outline text-sm" onClick={()=>setStrike(strike.length?[]:q.options.map(o=>o.id))}>Strike through {strike.length?'off':'on'}</button><button className="btn-outline text-sm" onClick={()=>setFlagged(v=>v.includes(q.id)?v.filter(id=>id!==q.id):[...v,q.id])}>{flagged.includes(q.id)?'★ Flagged':'☆ Flag for review'}</button></div>{paused&&mode==='test'?<div className="surface p-12 text-center"><h2 className="text-3xl">Exam paused</h2><p className="mt-3">Your timer is paused. Resume when you’re ready.</p><button className="btn-primary mt-5" onClick={()=>setPaused(false)}>Resume test</button></div>:<div className={`${Object.keys(chart).length?'grid lg:grid-cols-2':''} gap-5`}>{Object.keys(chart).length>0&&<div className="surface overflow-hidden"><div className="bg-oatmeal px-6 py-5"><h2 className="text-xl">Patient chart</h2><p className="text-xs mt-1 text-espresso/60">Clinical record</p></div><div className="flex gap-1 px-4 border-b border-rose/30 overflow-x-auto">{chartTabs.map(t=><button key={t} className={`shrink-0 py-3 px-2 text-xs border-b-2 ${tab===t?'border-mauve text-mauve font-bold':'border-transparent text-espresso/60'}`} onClick={()=>setTab(t)}>{t}</button>)}</div><div className="p-6 whitespace-pre-wrap text-[14px] leading-7">{chart[tab]||'No information documented in this section.'}</div></div>}<article className="surface p-6 md:p-8"><div className="flex justify-between gap-3"><span className="text-xs font-bold uppercase tracking-widest text-mauve">{q.type==='single'?'Multiple choice':q.type==='sata'?'Select all that apply':'NGN · Matrix'}</span><span className="text-xs text-espresso/50">OB Question Bank</span></div><h2 className={`text-xl md:text-2xl leading-snug mt-5 ${highlight?'bg-blush rounded-lg':''}`}>{q.stem}</h2>{q.type==='matrix'?<div className="overflow-x-auto mt-7"><table className="w-full text-sm"><thead><tr><th className="text-left p-3">Clinical finding</th>{q.options.map(o=><th key={o.id} className="p-3 text-center">{o.label}</th>)}</tr></thead><tbody>{q.matrix_rows?.map(row=><tr key={row.id} className="border-t border-rose/25"><th className="text-left p-3 font-medium">{row.label}</th>{q.options.map(o=><td key={o.id} className="text-center p-3"><input disabled={!!fb} type="radio" name={row.id} checked={(answer as Record<string,string>|undefined)?.[row.id]===o.id} onChange={()=>setAnswer({...((answer as Record<string,string>)||{}),[row.id]:o.id})} aria-label={`${row.label}: ${o.label}`} className="accent-mauve"/></td>)}</tr>)}</tbody></table></div>:<fieldset className="mt-6 space-y-3"><legend className="sr-only">Response options</legend>{q.options.map(o=>{const selected=q.type==='single'?answer===o.id:Array.isArray(answer)&&answer.includes(o.id);const correct=fb&&(Array.isArray(fb.answer_key)?fb.answer_key.includes(o.id):fb.answer_key===o.id);return <label key={o.id} className={`flex items-start gap-3 border rounded-xl p-4 cursor-pointer ${fb?(correct?'border-mauve bg-blush/60':selected?'border-rose bg-rose/10':'border-rose/20'):(selected?'border-mauve bg-blush/55':'border-rose/35 hover:bg-blush/30')}`}><input type={q.type==='single'?'radio':'checkbox'} name={q.id} disabled={!!fb} checked={!!selected} onChange={()=>setAnswer(q.type==='single'?o.id:selected?(answer as string[]).filter(x=>x!==o.id):[...(Array.isArray(answer)?answer:[]),o.id])} className="accent-mauve mt-1"/><span className={`text-[14px] leading-6 ${strike.includes(o.id)?'line-through opacity-40':''}`}>{o.label}</span></label>})}</fieldset>}{fb&&<div role="status" className="mt-7 rounded-xl border border-rose/60 bg-oatmeal p-6"><div className="text-mauve font-bold mb-2">Answer rationale · {fb.earned}/{fb.possible} points</div><p className="whitespace-pre-wrap text-sm leading-7">{fb.rationale}</p></div>}{message&&<p role="alert" className="mt-4 text-mauve">{message}</p>}<div className="flex flex-wrap justify-between gap-3 mt-8 border-t border-rose/30 pt-6"><button className="btn-outline" onClick={()=>setIndex(v=>Math.max(v-1,0))} disabled={index===0}>← Previous</button><div className="flex gap-2">{mode==='study'&&!fb&&<button className="btn-primary" disabled={answer===undefined} onClick={()=>void check()}>Submit answer</button>}{index<items.length-1?<button className="btn-outline" onClick={()=>{setIndex(v=>v+1);setTab('Nurses’ Notes');setStrike([])}}>Next →</button>:<button className="btn-primary" onClick={()=>void finish()}>Finish exam</button>}</div></div></article></div>}<div className="flex flex-wrap gap-2">{items.map((item,i)=><button key={item.id} onClick={()=>{setIndex(i);setTab('Nurses’ Notes');setStrike([])}} aria-label={`Go to question ${i+1}`} className={`rounded-lg w-9 h-9 text-xs font-semibold border ${index===i?'bg-mauve text-white border-mauve':flagged.includes(item.id)?'bg-blush border-mauve':'border-rose/45'}`}>{i+1}</button>)}</div></div>
+import './exam.css';
+
+type Answer=string|string[]|Record<string,string>;
+type Feedback={earned:number;possible:number;rationale:string;answer_key:unknown};
+type Panel='settings'|'calculator'|'navigator'|'end'|null;
+const DURATION=30*60;
+const THEME_KEY='maternity-method-exam-theme';
+
+export function Exam({category='All',initialMode='study',selectedIds,onExit}:{category?:Category|'All';initialMode?:'study'|'test';selectedIds?:string[];onExit?:()=>void}){
+ const router=useRouter();
+ const mode=initialMode;
+ const shell=useRef<HTMLDialogElement>(null),popup=useRef<HTMLDialogElement>(null),stem=useRef<HTMLHeadingElement>(null);
+ const clock=useRef({milliseconds:0,started:null as number|null});
+ const submitting=useRef(false),autoSubmitted=useRef(false);
+ const [phase,setPhase]=useState<'loading'|'active'|'error'|'submitting'|'complete'>('loading');
+ const [items,setItems]=useState<Question[]>([]),[index,setIndex]=useState(0);
+ const [answers,setAnswers]=useState<Record<string,Answer>>({}),[feedback,setFeedback]=useState<Record<string,Feedback>>({});
+ const [message,setMessage]=useState(''),[retry,setRetry]=useState(0),[elapsed,setElapsed]=useState(0),[paused,setPaused]=useState(false);
+ const [flags,setFlags]=useState<string[]>([]),[highlights,setHighlights]=useState<string[]>([]),[strikes,setStrikes]=useState<Record<string,string[]>>({}),[strikeMode,setStrikeMode]=useState(false);
+ const [tab,setTab]=useState(''),[panel,setPanel]=useState<Panel>(null),[checking,setChecking]=useState(false);
+ const [theme,setTheme]=useState<'light'|'dark'>('light'),[preferencesReady,setPreferencesReady]=useState(false),[fontSize,setFontSize]=useState(16);
+ const [calculation,setCalculation]=useState(''),[calculatorError,setCalculatorError]=useState(''),[sessionMark,setSessionMark]=useState('');
+ const [result,setResult]=useState<{earned:number;possible:number}|null>(null);
+ const remaining=Math.max(0,DURATION-elapsed),expired=mode==='test'&&remaining===0;
+ const question=items[index],answer=question?answers[question.id]:undefined,review=question?feedback[question.id]:undefined;
+ const answered=items.filter(item=>isQuestionAnswered(item,answers[item.id])).length;
+ const exit=useCallback(()=>{if(onExit)onExit();else router.push('/question-bank')},[onExit,router]);
+
+ useEffect(()=>{
+  const dialog=shell.current;const overflow=document.body.style.overflow;document.body.style.overflow='hidden';
+  if(dialog&&!dialog.open)dialog.showModal();
+  setSessionMark(document.getElementById('protected-course-content')?.dataset.watermark??'');
+  try{const stored=localStorage.getItem(THEME_KEY);if(stored==='light'||stored==='dark')setTheme(stored)}catch{}
+  setPreferencesReady(true);
+  return()=>{dialog?.close();document.body.style.overflow=overflow};
+ },[]);
+ useEffect(()=>{if(preferencesReady)try{localStorage.setItem(THEME_KEY,theme)}catch{}},[theme,preferencesReady]);
+ useEffect(()=>{
+  const dialog=popup.current;if(!dialog)return;
+  if(panel&&!dialog.open)dialog.showModal();else if(!panel&&dialog.open)dialog.close();
+ },[panel]);
+ useEffect(()=>{
+  const controller=new AbortController();
+  setPhase('loading');setMessage('');setItems([]);setIndex(0);setAnswers({});setFeedback({});setResult(null);setFlags([]);setStrikes({});setHighlights([]);setPaused(false);setElapsed(0);setPanel(null);
+  clock.current={milliseconds:0,started:null};autoSubmitted.current=false;submitting.current=false;
+  (async()=>{
+   try{
+    const response=await fetch('/api/questions?category='+encodeURIComponent(category),{cache:'no-store',signal:controller.signal});
+    const data=await response.json();if(controller.signal.aborted)return;
+    if(!response.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not load your questions.');
+    const available=data.questions as Question[];
+    const byId=new Map(available.map(item=>[item.id,item]));
+    const selected=selectedIds?selectedIds.flatMap(id=>{const item=byId.get(id);return item?[item]:[]}):available.slice(0,50);
+    if(selectedIds&&(selectedIds.length>50||selected.length!==selectedIds.length))throw Error('Some selected questions are no longer available. Return to the builder and generate another test.');
+    if(!selected.length)throw Error('No published questions are available for this test.');
+    setItems(selected);setPhase('active');
+   }catch(error){if(!controller.signal.aborted){setMessage(error instanceof Error?error.message:'Could not load your test.');setPhase('error')}}
+  })();
+  return()=>controller.abort();
+ },[category,selectedIds,retry]);
+ useEffect(()=>{
+  if(phase!=='active'||paused||!items.length)return;
+  const activeClock=clock.current;activeClock.started=performance.now();
+  const update=()=>setElapsed(Math.floor((activeClock.milliseconds+performance.now()-(activeClock.started??performance.now()))/1000));
+  const interval=window.setInterval(update,250);
+  return()=>{
+   clearInterval(interval);
+   if(activeClock.started!==null){activeClock.milliseconds+=Math.max(0,performance.now()-activeClock.started);activeClock.started=null;}
+   if(clock.current===activeClock)setElapsed(Math.floor(activeClock.milliseconds/1000));
+  };
+ },[phase,paused,items.length]);
+ const finish=useCallback(async()=>{
+  if(submitting.current||result||!items.length)return;
+  submitting.current=true;setPhase('submitting');setPanel(null);setMessage('');
+  const activeClock=clock.current;
+  const activeSeconds=Math.floor((activeClock.milliseconds+(activeClock.started===null?0:Math.max(0,performance.now()-activeClock.started)))/1000);
+  const duration=mode==='test'?Math.min(DURATION,activeSeconds):activeSeconds;
+  try{
+   const response=await fetch('/api/exams/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,questionIds:items.map(item=>item.id),answers,durationSeconds:duration})});
+   const data=await response.json();if(!response.ok)throw Error(data.error||'Could not save your test.');
+   setResult(data);setPhase('complete');
+  }catch(error){setMessage(error instanceof Error?error.message:'Could not save your test. Your responses are still here; please try again.');setPaused(true);setPhase('active')}
+  finally{submitting.current=false}
+ },[answers,items,mode,result]);
+ useEffect(()=>{if(expired&&phase==='active'&&!autoSubmitted.current){autoSubmitted.current=true;setPaused(true);void finish()}},[expired,phase,finish]);
+
+ function move(next:number){setIndex(next);setTab('');setPanel(null);setMessage('');requestAnimationFrame(()=>stem.current?.focus())}
+ function choose(value:Answer){if(question&&!review&&!checking&&phase==='active'&&!paused)setAnswers(current=>({...current,[question.id]:value}))}
+ async function check(){
+  if(!question||checking||!isQuestionAnswered(question,answer))return;
+  setChecking(true);setMessage('');
+  try{
+   const response=await fetch('/api/study/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:question.id,answer})});
+   const data=await response.json();if(!response.ok)throw Error(data.error||'Could not check your answer.');
+   setFeedback(current=>({...current,[question.id]:data}));
+  }catch(error){setMessage(error instanceof Error?error.message:'Could not check your answer. Please try again.')}finally{setChecking(false)}
+ }
+ function calculate(){try{setCalculation(calculateExpression(calculation));setCalculatorError('')}catch(error){setCalculatorError(error instanceof Error?error.message:'Invalid calculation')}}
+ const chart=question?.chart??{},chartTabs=Object.keys(chart),currentTab=chartTabs.includes(tab)?tab:chartTabs[0];
+ const disabled=phase!=='active'||paused||checking;
+
+ return <dialog ref={shell} className="exam-shell" data-theme={theme} style={{'--exam-font-size':fontSize+'px'} as CSSProperties} aria-label={mode==='study'?'Study test':'Timed practice exam'} onCancel={event=>{if(event.target===shell.current){event.preventDefault();if(phase==='active')setPanel('end')}}}>
+  <header className="exam-topbar">
+   <span>{mode==='study'?'Study test (Tutored, Untimed)':'Practice exam (Timed)'}</span><strong className="exam-brand">The Maternity Method</strong>
+   <div className="exam-meta"><span className="exam-clock" aria-label={mode==='test'?'Time remaining':'Elapsed study time'}><Clock size={18}/>{formatExamTime(mode==='test'?remaining:elapsed)}</span><span>Question {items.length?index+1:0} of {items.length}</span></div>
+  </header>
+  <nav className="exam-toolbar" aria-label="Exam tools">
+   <button type="button" onClick={()=>setPanel('calculator')} disabled={phase!=='active'}><Calculator size={18}/>Calculator</button>
+   <button type="button" onClick={()=>setHighlights(current=>current.includes(question.id)?current.filter(id=>id!==question.id):[...current,question.id])} disabled={disabled||!question} aria-pressed={question?highlights.includes(question.id):false}><Highlighter size={18}/>Highlight</button>
+   <button type="button" onClick={()=>setStrikeMode(value=>!value)} disabled={disabled||!question} aria-pressed={strikeMode}><Strikethrough size={18}/>Strike options</button>
+   <span className="exam-toolbar-spacer"/>
+   <button type="button" onClick={()=>setPanel('settings')}><Settings size={18}/>Settings</button>
+   <button type="button" onClick={()=>setFlags(current=>current.includes(question.id)?current.filter(id=>id!==question.id):[...current,question.id])} disabled={disabled||!question} aria-pressed={question?flags.includes(question.id):false}><Bookmark size={18} fill={question&&flags.includes(question.id)?'currentColor':'none'}/>Mark for Review</button>
+  </nav>
+  <main className="exam-main">
+   {phase==='loading'?<p role="status">Loading your test…</p>
+    :phase==='error'?<section className="exam-centered"><h1>Test unavailable</h1><p role="alert">{message}</p><div className="exam-actions"><button type="button" onClick={()=>setRetry(value=>value+1)}>Try again</button><button type="button" onClick={exit}>Return to test builder</button></div></section>
+    :phase==='submitting'?<section className="exam-centered" role="status"><h1>Saving your test…</h1><p>Please keep this page open.</p></section>
+    :result?<section className="exam-centered"><p>Test submitted</p><h1>Your results</h1><strong className="exam-score">{result.possible?Math.round(result.earned/result.possible*100):0}%</strong><p>{result.earned} of {result.possible} available points</p><p>Your attempt is saved in Previous Tests and Performance.</p><div className="exam-actions"><button type="button" onClick={()=>router.push('/previous-tests')}>View previous tests</button><button type="button" onClick={exit}>Return to test builder</button></div></section>
+    :paused?<section className="exam-centered"><h1>{expired?'Time is up':'Test paused'}</h1><p>{expired?'Submit your responses to save this attempt.':'Your questions are hidden and the timer is stopped.'}</p>{message&&<p role="alert">{message}</p>}<div className="exam-actions">{expired?<button type="button" onClick={()=>void finish()}>Retry submission</button>:<><button type="button" onClick={()=>{setPaused(false);setMessage('')}}>Resume test</button><button type="button" onClick={()=>setPanel('end')}>End test</button></>}</div></section>
+    :question&&<div className={chartTabs.length?'exam-question-layout exam-with-chart':'exam-question-layout'}>
+     {chartTabs.length>0&&<aside className="exam-chart" aria-label="Patient chart"><h2>Patient chart</h2><div className="exam-chart-tabs" role="tablist" aria-label="Clinical chart sections">{chartTabs.map((title,n)=><button type="button" role="tab" id={'exam-chart-tab-'+n} aria-selected={currentTab===title} aria-controls="exam-chart-panel" key={title} onClick={()=>setTab(title)}>{title}</button>)}</div><div id="exam-chart-panel" role="tabpanel" aria-labelledby={'exam-chart-tab-'+chartTabs.indexOf(currentTab)} className="exam-chart-content">{chart[currentTab]}</div></aside>}
+     <article className="exam-question">
+      <p className="exam-question-kind">{question.category} · {question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
+      <h1 ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}>{question.stem}</h1>
+      {question.type==='matrix'?<div className="exam-matrix-scroll"><table className="exam-matrix"><thead><tr><th scope="col">Clinical finding</th>{question.options.map(option=><th scope="col" key={option.id}>{option.label}</th>)}</tr></thead><tbody>{question.matrix_rows?.map(row=><tr key={row.id}><th scope="row">{row.label}</th>{question.options.map(option=><td key={option.id}><input type="radio" name={question.id+'-'+row.id} disabled={Boolean(review)||checking} checked={(answer as Record<string,string>|undefined)?.[row.id]===option.id} aria-label={row.label+': '+option.label} onChange={()=>choose({...((answer as Record<string,string>)??{}),[row.id]:option.id})}/></td>)}</tr>)}</tbody></table></div>
+       :<fieldset className="exam-options"><legend className="exam-sr-only">{question.type==='sata'?'Select all correct answers':'Select one answer'}</legend>{question.options.map((option,n)=>{
+        const selected=question.type==='single'?answer===option.id:Array.isArray(answer)&&answer.includes(option.id);
+        const correct=Boolean(review&&(Array.isArray(review.answer_key)?review.answer_key.includes(option.id):review.answer_key===option.id));
+        const crossed=(strikes[question.id]??[]).includes(option.id);
+        return <div className={'exam-option-row'+(review?(correct?' exam-option-correct':selected?' exam-option-incorrect':''):'')} key={option.id}>
+         <label className="exam-option"><input type={question.type==='single'?'radio':'checkbox'} name={question.id} disabled={Boolean(review)||checking} checked={Boolean(selected)} onChange={()=>choose(question.type==='single'?option.id:selected?(answer as string[]).filter(id=>id!==option.id):[...(Array.isArray(answer)?answer:[]),option.id])}/><span className="exam-option-number">{n+1}.</span><span className={crossed?'exam-option-crossed':''}>{option.label}</span>{correct&&<Check size={18} aria-label="Correct option"/>}</label>
+         {strikeMode&&!review&&<button type="button" className="exam-strike-button" aria-label={'Strike option '+(n+1)} aria-pressed={crossed} onClick={()=>setStrikes(current=>({...current,[question.id]:crossed?(current[question.id]??[]).filter(id=>id!==option.id):[...(current[question.id]??[]),option.id]}))}><Strikethrough size={17}/></button>}
+        </div>;
+       })}</fieldset>}
+      {mode==='study'&&!review&&<button type="button" className="exam-submit-answer" disabled={checking||!isQuestionAnswered(question,answer)} onClick={()=>void check()}>{checking?'Checking…':'Submit answer'}</button>}
+      {review&&<section className="exam-rationale" aria-label="Answer rationale"><h2>Answer rationale · {review.earned}/{review.possible} points</h2><p>{review.rationale}</p></section>}
+      {message&&<p role="alert" className="exam-error">{message}</p>}
+     </article>
+    </div>}
+  </main>
+  <footer className="exam-footer">
+   <div className="exam-footer-group"><button type="button" onClick={()=>phase==='active'?setPanel('end'):exit()} disabled={phase==='submitting'||checking}><LogOut size={19}/>End</button><button type="button" disabled={phase!=='active'||expired||checking} onClick={()=>setPaused(value=>!value)}>{paused?<Play size={19}/>:<Pause size={19}/>} {paused?'Resume':'Pause'}</button></div>
+   <span className="exam-session-mark">The Maternity Method{sessionMark?' · '+sessionMark:''}</span>
+   <div className="exam-footer-group"><button type="button" disabled={disabled||index===0} onClick={()=>move(index-1)}><ChevronLeft size={22}/>Previous</button><button type="button" disabled={disabled||!items.length} onClick={()=>setPanel('navigator')}><ListChecks size={19}/>Navigator</button><button type="button" disabled={disabled||!items.length} onClick={()=>index<items.length-1?move(index+1):setPanel('end')}>{index<items.length-1?'Next':'Finish'}<ChevronRight size={22}/></button></div>
+  </footer>
+  <dialog ref={popup} className={'exam-popup exam-popup-'+(panel??'closed')} aria-label={panel==='settings'?'Test settings':panel==='calculator'?'Calculator':panel==='navigator'?'Question navigator':'End test'} onCancel={event=>{event.preventDefault();event.stopPropagation();setPanel(null)}} onClose={()=>setPanel(null)}>
+   <div className="exam-popup-heading"><h2>{panel==='settings'?'Settings':panel==='calculator'?'Calculator':panel==='navigator'?'Question navigator':'End test'}</h2><button type="button" aria-label="Close panel" onClick={()=>setPanel(null)}><X size={20}/></button></div>
+   {panel==='settings'&&<div className="exam-settings"><fieldset><legend>Viewing mode</legend>{(['light','dark'] as const).map(value=><label key={value}><input type="radio" name="exam-theme" checked={theme===value} onChange={()=>setTheme(value)}/>{value==='light'?'Light view':'Dark view'}</label>)}</fieldset><label>Question text size<select value={fontSize} onChange={event=>setFontSize(Number(event.target.value))}><option value={16}>Standard</option><option value={18}>Large</option><option value={20}>Extra large</option></select></label></div>}
+   {panel==='calculator'&&<div className="exam-calculator"><label className="exam-sr-only" htmlFor="exam-calculation">Calculation</label><input id="exam-calculation" value={calculation} inputMode="decimal" autoComplete="off" onChange={event=>{setCalculation(event.target.value);setCalculatorError('')}} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();calculate()}}}/>{calculatorError&&<p role="alert">{calculatorError}</p>}<div className="exam-calculator-keys">{['C','⌫','%','÷','7','8','9','×','4','5','6','−','1','2','3','+','(',')','0','.'].map(key=><button type="button" key={key} aria-label={key==='⌫'?'Backspace':key==='C'?'Clear calculation':key} onClick={()=>{setCalculatorError('');setCalculation(value=>key==='C'?'':key==='⌫'?value.slice(0,-1):value+key)}}>{key}</button>)}</div><button type="button" className="exam-calculate" onClick={calculate}>Calculate =</button></div>}
+   {panel==='navigator'&&<><p className="exam-navigation-summary">{answered} answered · {items.length-answered} unanswered · {flags.length} marked for review</p><div className="exam-navigator-grid">{items.map((item,n)=>{const complete=isQuestionAnswered(item,answers[item.id]),marked=flags.includes(item.id);return <button type="button" key={item.id} className={(complete?'is-answered ':'')+(n===index?'is-current':'')} aria-label={'Question '+(n+1)+', '+(complete?'answered':'unanswered')+(marked?', marked for review':'')} aria-current={n===index?'step':undefined} onClick={()=>move(n)}>{n+1}{marked&&<Bookmark size={12} fill="currentColor"/>}</button>})}</div></>}
+   {panel==='end'&&<><p>You have answered {answered} of {items.length} questions.</p>{answered<items.length&&<p>{items.length-answered} questions are unanswered or incomplete. You can return to them before submitting.</p>}<p>Submit to save your score and finish this session.</p><div className="exam-end-actions"><button type="button" onClick={()=>setPanel(null)}>Continue test</button><button type="button" onClick={()=>void finish()}>Submit and end test</button><button type="button" className="exam-discard" onClick={exit}>Exit without saving</button></div></>}
+  </dialog>
+ </dialog>;
 }

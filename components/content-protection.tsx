@@ -27,7 +27,7 @@ export function ContentProtection({children, watermark}:{children:ReactNode;wate
       protectedRoot.removeEventListener('keydown',preventKeys);
     };
   },[]);
-  return <div id="protected-course-content" className="relative min-h-screen protected-course-content">
+  return <div id="protected-course-content" data-watermark={watermark} className="relative min-h-screen protected-course-content">
     <div className="pointer-events-none fixed inset-y-0 right-0 left-0 md:left-[270px] z-[35] overflow-hidden opacity-[0.12] select-none" aria-hidden="true">
       <div className="absolute inset-[-35%] -rotate-[24deg] flex flex-wrap content-center justify-center gap-x-24 gap-y-24">
         {Array.from({length:96},(_,i)=><span key={i} className="text-xs font-semibold whitespace-nowrap tracking-wide text-espresso">The Maternity Method · {watermark}</span>)}
