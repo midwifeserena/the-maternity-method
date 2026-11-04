@@ -1,3 +1,4 @@
+import {resolveMediaRecords} from '@/lib/question-media-server';
 import {admin} from '@/lib/supabase/admin';
 import {createClient} from '@/lib/supabase/server';
 import {buildExamReview,summarizeAttempt,publicSnapshot} from '@/lib/exam-review.mjs';
@@ -10,7 +11,7 @@ export type UserDatabase=Awaited<ReturnType<typeof createClient>>;
 export async function startReviewAttempt(db:UserDatabase,ids:string[],mode:'study'|'test',stage:'start'|'submission'='start'){
  const {data,error}=await db.rpc('start_exam_review_attempt',{p_question_ids:ids,p_mode:mode,p_exam_name:mode==='study'?'Study practice test':'Timed practice exam',p_snapshot_stage:stage});
  if(error)return {data:null,error};
- const questions=(data.questions as unknown[]).map(publicSnapshot);
+ const questions=(await resolveMediaRecords(data.questions as unknown[])).map(publicSnapshot);
  if(questions.some(question=>!question))return {data:null,error:{code:'INVALID_SNAPSHOT',message:'Invalid archived question'}};
  return {data:{attemptId:data.attemptId as string,questions},error:null};
 }
@@ -54,6 +55,6 @@ export async function completedReview(db:UserDatabase,userId:string,id:string){
    currentQuestions.push(...(questions.data??[]));currentSolutions.push(...(solutions.data??[]));
   }
  }
- return {data:buildExamReview(attempt.data,responses.data,archived,currentQuestions,currentSolutions),error:null,status:200};
+ return {data:buildExamReview(attempt.data,responses.data,await resolveMediaRecords(archived),await resolveMediaRecords(currentQuestions),await resolveMediaRecords(currentSolutions)),error:null,status:200};
 }
 export {summarizeAttempt};
