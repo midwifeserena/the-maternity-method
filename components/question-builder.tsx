@@ -55,7 +55,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
  function toggleStatus(status:Status){setStatuses(current=>current.includes(status)?current.filter(t=>t!==status):[...current,status])}
  function build(){if(!max)return;const pool=mode==='standard'?[...eligible].sort(()=>Math.random()-.5):eligible;
   setStarted(pool.slice(0,Math.min(Math.max(1,count),max)).map(q=>q.id))}
- if(started)return <div><button className="btn-outline mb-6" onClick={()=>setStarted(null)}>← Back to test builder</button><Exam key={started.join(',')} selectedIds={started} initialMode={examMode}/></div>;
+ if(started)return <Exam key={started.join(',')} selectedIds={started} initialMode={examMode} onExit={()=>setStarted(null)}/>;
  const shell='rounded-2xl border border-rose/30 bg-[#FFF9F2] p-5 md:p-7';
  const pill=(active:boolean)=>`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${active?'bg-mauve text-white':'text-mauve hover:bg-blush'}`;
  return <div className="space-y-5 max-w-5xl">
