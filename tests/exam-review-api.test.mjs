@@ -7,7 +7,7 @@ import * as scoring from '../lib/scoring.mjs';
 const owner='10000000-0000-0000-0000-000000000001',other='10000000-0000-0000-0000-000000000002',id='30000000-0000-0000-0000-000000000001',qid='20000000-0000-0000-0000-000000000001';
 const original={id:qid,type:'single',category:'Antepartum',stem:'Original archived question',options:[{id:'a',label:'Original A'},{id:'b',label:'B'}],matrix_rows:[]};
 const attempt={id,user_id:owner,mode:'study',earned:0,possible:0,question_count:1,snapshot_stage:'start',completed_at:null};
-function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null}={}){
+function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false}={}){
  const calls=[],writes=[];
  function client(privileged=false){return {auth:{getUser:async()=>({data:{user:user?{id:user}:null}})},rpc:async(name,args)=>{
   calls.push({rpc:name,privileged,args});
@@ -15,7 +15,7 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
   assert(privileged);assert.equal(name,'complete_exam_review_attempt');writes.push(args);const row=attempts.find(a=>a.id===args.p_attempt_id);row.completed_at='2026-11-04';row.earned=args.p_responses.reduce((n,r)=>n+r.earned,0);row.possible=args.p_responses.reduce((n,r)=>n+r.possible,0);return {data:{attemptId:id,earned:row.earned,possible:row.possible},error:null};
  },from(table){calls.push({table,privileged});let filters=[],start=0,end=Infinity,single=false;
   const chain={select(){return chain},eq(key,value){filters.push(r=>r[key]===value);return chain},in(key,value){filters.push(r=>value.includes(r[key]));return chain},not(key,_op,value){filters.push(r=>r[key]!==value);return chain},order(){return chain},range(a,b){start=a;end=b;return chain},maybeSingle(){single=true;return chain},single(){single=true;return chain},
-   then(resolve,reject){let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_review_items'?snapshots:table==='questions'?[{...original,stem:'CURRENT EDIT',published:true}]:[];rows=rows.filter(row=>filters.every(match=>match(row))).slice(start,end+1);return Promise.resolve({data:single?rows[0]??null:rows,error:null}).then(resolve,reject)}
+   then(resolve,reject){if(table===failTable)return Promise.resolve({data:null,error:{code:'XX000'}}).then(resolve,reject);if(table==='exam_review_items'&&missingSnapshots)return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject);let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_review_items'?snapshots:table==='questions'?liveQuestions:table==='question_solutions'?liveSolutions:[];rows=rows.filter(row=>filters.every(match=>match(row))).slice(start,end+1);return Promise.resolve({data:single?rows[0]??null:rows,error:null}).then(resolve,reject)}
   };return chain;
  }}}
  const db=client(),service=client(true),cache=new Map();
@@ -56,10 +56,28 @@ test('study feedback uses frozen version and rejects timed or other-owned sessio
 });
 test('start returns no solution information; compatibility is limited to genuinely missing migration',async()=>{
  const h=harness();const response=await h.load('app/api/exams/start/route.ts').POST(post('',{questionIds:[qid],mode:'study'}));const data=await response.json();assert.equal(data.attemptId,id);assert(!JSON.stringify(data).includes('rationale'));assert(!JSON.stringify(data).includes('answer_key'));
- const old=harness({missing:true});const fallback=await old.load('app/api/exams/start/route.ts').POST(post('',{questionIds:[qid],mode:'study'}));assert.equal((await fallback.json()).reviewSnapshotAvailable,false);
+ const old=harness({missing:true,liveQuestions:[{...original,published:true}]});const fallback=await old.load('app/api/exams/start/route.ts').POST(post('',{questionIds:[qid],mode:'study'}));assert.equal((await fallback.json()).reviewSnapshotAvailable,false);
 });
 test('history is scoped to owner, excludes incomplete attempts, and paginates response reads beyond 500',async()=>{
  const rows=[{...attempt,completed_at:'2026-11-04',question_count:501,earned:501,possible:501},{...attempt,id:'other',user_id:other,completed_at:'2026-11-04'}, {...attempt,id:'pending'}];
  const responses=Array.from({length:501},(_,i)=>({id:String(i),attempt_id:id,user_id:owner,question_id:String(i),response:'a',earned:1,possible:1}));const h=harness({historyRows:rows,responses});
  const result=await h.load('app/api/exams/history/route.ts').GET({nextUrl:new URL('https://example.test?offset=0')}),data=await result.json();assert.equal(data.attempts.length,1);assert.equal(data.attempts[0].correctCount,501);assert.equal(h.calls.filter(c=>c.table==='exam_responses').length,2);assert.equal(h.writes.length,0);
+});
+
+test('legacy study and timed exams retrieve linked current content only after ownership and completion checks',async()=>{
+ for(const mode of ['study','test']){
+  const saved={...attempt,mode,snapshot_stage:null,question_count:null,completed_at:'2026-11-04',earned:1,possible:1};
+  const rows=[{id:'r',attempt_id:id,user_id:owner,question_id:qid,response:'a',earned:1,possible:1}];
+  const h=harness({attempts:[saved],responses:rows,snapshots:[],liveQuestions:[{...original,stem:'CURRENT EDIT',published:false,answer_key:'should never leak as a question field'},{...original,id:'unrelated'}],liveSolutions:[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'},{question_id:'unrelated',answer_key:'secret',rationale:'Unrelated private rationale'}]});
+  const response=await reviewRequest(h),data=await response.json();assert.equal(response.status,200);assert.equal(data.items.length,1);assert.equal(data.items[0].question.stem,'CURRENT EDIT');assert.equal(data.items[0].rationale,'Current bank rationale');assert.equal(data.items[0].correctAnswer,'b');assert.equal(data.items[0].contentSource,'current');assert.equal(data.items[0].response,'a');assert.equal(data.items[0].status,'correct');assert.equal(data.attempt.earned,1);assert(!JSON.stringify(data).includes('Unrelated private'));assert(!JSON.stringify(data).includes('should never leak'));assert.match(data.warnings.join(' '),/current question-bank content/);assert.equal(h.writes.length,0);assert.equal(saved.earned,1);
+  assert(h.calls.findIndex(c=>c.table==='exam_attempts')<h.calls.findIndex(c=>c.privileged));
+ }
+});
+test('legacy fallback works before snapshot migration and never invents missing answers or rationales',async()=>{
+ const h=harness({attempts:[{...attempt,completed_at:'2026-11-04'}],responses:[{id:'r',attempt_id:id,user_id:owner,question_id:qid,response:'b',earned:0,possible:1}],missingSnapshots:true,liveSolutions:[]});
+ const response=await reviewRequest(h),data=await response.json();assert.equal(response.status,200);assert.equal(data.items[0].contentSource,'current');assert.equal(data.items[0].correctAnswer,null);assert.equal(data.items[0].rationale,null);assert.equal(h.writes.length,0);
+});
+test('no saved response records means no current-bank solution reads; unavailable bank causes retry rather than misleading empty review',async()=>{
+ const empty=harness({attempts:[{...attempt,completed_at:'2026-11-04'}],snapshots:[]});assert.equal((await reviewRequest(empty)).status,200);assert(!empty.calls.some(c=>c.privileged));
+ const failing=harness({attempts:[{...attempt,completed_at:'2026-11-04'}],snapshots:[],responses:[{id:'r',attempt_id:id,user_id:owner,question_id:qid,response:'a',earned:1,possible:1}],failTable:'question_solutions'});assert.equal((await reviewRequest(failing)).status,500);assert.equal(failing.writes.length,0);
 });
