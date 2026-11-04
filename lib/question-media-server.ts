@@ -45,5 +45,5 @@ export async function resolveMediaRecords<T>(records:T[]):Promise<T[]>{
 }
 export async function educationFeedback(solution:Record<string,unknown>){
  const [resolved]=await resolveMediaRecords([solution]);
- return {row_explanations:normalizeRowExplanations(solution.row_explanations),rationale_images:reviewImages(resolved),nursing_tip:typeof solution.nursing_tip==='string'&&solution.nursing_tip.trim()?solution.nursing_tip:null};
+ return {rationale_format:solution.rationale_format==='markdown'?'markdown':'plain',answer_explanations:normalizeRowExplanations(solution.answer_explanations),test_taking_tip:typeof solution.test_taking_tip==='string'?solution.test_taking_tip:null,row_explanations:normalizeRowExplanations(solution.row_explanations),rationale_images:reviewImages(resolved),nursing_tip:typeof solution.nursing_tip==='string'&&solution.nursing_tip.trim()?solution.nursing_tip:null};
 }

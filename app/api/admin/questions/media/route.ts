@@ -11,7 +11,7 @@ export async function POST(request:NextRequest){
  if(!(file instanceof File)||!validExamId(id)||!['question','rationale'].includes(String(kind)))return NextResponse.json({error:'Choose a question and an image.'},{status:400});
  if(!file.size||file.size>3*1024*1024)return NextResponse.json({error:'Images must be 3 MB or smaller.'},{status:413});
  const db=admin(),question=await db.from('questions').select('id').eq('id',id).maybeSingle();
- if(question.error||!question.data)return NextResponse.json({error:'Question not found'},{status:404});
+ if(question.error||(!question.data&&form?.get('draft')!=='true'))return NextResponse.json({error:'Question not found'},{status:404});
  const bytes=new Uint8Array(await file.arrayBuffer()),format=uploadedImageType(bytes);
  if(!format)return NextResponse.json({error:'Use a PNG, JPEG or WebP image. SVG and other file types are not accepted.'},{status:400});
  const path=`${id}/${kind}/${crypto.randomUUID()}.${format.extension}`;

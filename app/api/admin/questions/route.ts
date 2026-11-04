@@ -14,9 +14,10 @@ export async function GET(request:NextRequest){
   if(!validExamId(id))return NextResponse.json({error:'Invalid question ID'},{status:400});
   const [question,solution]=await Promise.all([db.from('questions').select('*').eq('id',id).maybeSingle(),db.from('question_solutions').select('*').eq('question_id',id).maybeSingle()]);
   if(question.error||solution.error)return NextResponse.json({error:'Could not load question.'},{status:500});
-  if(!question.data||!solution.data)return NextResponse.json({error:'Question or solution not found.'},{status:404});
-  const [previewQuestion,previewSolution]=await resolveMediaRecords([question.data,solution.data]);
-  return NextResponse.json({question:question.data,solution:solution.data,previewQuestion,previewSolution},{headers:{'Cache-Control':'no-store'}});
+  if(!question.data)return NextResponse.json({error:'Question not found.'},{status:404});
+  const savedSolution=solution.data??{question_id:id,answer_key:null,rationale:''};
+  const [previewQuestion,previewSolution]=await resolveMediaRecords([question.data,savedSolution]);
+  return NextResponse.json({question:question.data,solution:savedSolution,previewQuestion,previewSolution},{headers:{'Cache-Control':'no-store'}});
  }
  const offset=Number(request.nextUrl.searchParams.get('offset')??0),search=(request.nextUrl.searchParams.get('search')??'').trim().slice(0,200);
  if(!Number.isSafeInteger(offset)||offset<0)return NextResponse.json({error:'Invalid page'},{status:400});
@@ -54,6 +55,7 @@ async function editMatrix(body:{id:string;matrix?:unknown;matrixAction?:string})
  try{
   if(body.matrixAction){
    if(!['publish','unpublish'].includes(body.matrixAction)||body.matrix)throw Error('Invalid publication action.');
+   if(body.matrixAction==='publish'&&question.data.archived_at)return NextResponse.json({error:'Restore the question before publishing.'},{status:409});
    if(body.matrixAction==='publish')matrixDefinition({stem:question.data.stem,options:question.data.options,matrix_rows:question.data.matrix_rows,matrix_mode:question.data.matrix_mode??'single',answer_key:solution.data.answer_key,rationale:solution.data.rationale,row_explanations:solution.data.row_explanations??{}});
    patch={question:{published:body.matrixAction==='publish'},solution:{}};
   }else patch=matrixDefinition(body.matrix);
