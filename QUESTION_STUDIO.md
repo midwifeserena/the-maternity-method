@@ -52,3 +52,12 @@ Two new service-role-only functions provide atomic management and a paginated/co
 5. Sign in as a student. Admin pages/APIs must be blocked. Complete Study and Timed tests: question images/scenarios may display at start; protected tips/answers/explanations must follow existing reveal rules. Reopen each completed test, edit its source as admin, then verify archived content and original scores remain unchanged.
 
 Clinical question content still requires your normal nursing/content review before publishing. The interface validates completeness and structure, not clinical accuracy. No production deployment or merge is performed by this change.
+
+
+## Existing student questions missing from the admin library
+
+The library now reads the existing `questions` table in authorized, view-only compatibility mode when the Studio function is missing, its columns are unavailable, its response is invalid, or its unfiltered zero count contradicts records in that table. This is not a second bank and does not re-import or change IDs. The fast SQL path remains in use when valid. Compatibility mode retrieves metadata in deterministic 500-row pages, applies supported filters before pagination, and never reads solutions or writes data. It may be slower for a large bank; installing setup restores the normal efficient query and management actions.
+
+Missing difficulty metadata disables that filter instead of hiding all questions. View-only links keep save/publish/uploads disabled until setup is complete. An actual load/connection failure displays unavailable counts rather than fabricated zeroes. A truly empty connected project is identified separately, with guidance to verify the deployment's Supabase project. Student questions on another deployment/project cannot be copied automatically from here.
+
+For an existing app database missing prior setup, `supabase/question_studio_setup.sql` combines the five prerequisite migrations into one transaction. It is proposed, not applied. Review it and run first in staging; it is not an initializer for an empty project and contains no question imports or table resets. The SQL header names the intended database. If a prerequisite fails, the whole transaction rolls back. Existing private-storage checks are retained. Do not run seed/test fixtures against your actual question bank.

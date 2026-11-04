@@ -11,31 +11,33 @@ import * as matrixAuthoring from '../lib/matrix-authoring.mjs';
 const owner='10000000-0000-0000-0000-000000000001',other='10000000-0000-0000-0000-000000000002',id='30000000-0000-0000-0000-000000000001',qid='20000000-0000-0000-0000-000000000001';
 const original={id:qid,type:'single',category:'Antepartum',stem:'Original archived question',options:[{id:'a',label:'Original A'},{id:'b',label:'B'}],matrix_rows:[]};
 const attempt={id,user_id:owner,mode:'study',earned:0,possible:0,question_count:1,snapshot_stage:'start',completed_at:null};
-function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false,administrator=false}={}){
+function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false,administrator=false,libraryError=null,legacyColumns=null,adminUnavailable=false}={}){
  const calls=[],writes=[];
  function client(privileged=false){return {storage:{from(){return {createSignedUrls:async paths=>({data:paths.map(path=>({path,signedUrl:'https://example.test/signed/'+path})),error:null}),createSignedUrl:async path=>({data:{signedUrl:'https://example.test/signed/'+path},error:null}),upload:async(path,bytes,options)=>{writes.push({upload:path,size:bytes.length,options});return {data:{path},error:null}}}}},auth:{getUser:async()=>({data:{user:user?{id:user}:null}})},rpc:async(name,args)=>{
   calls.push({rpc:name,privileged,args});
   if(name==='manage_question_studio'){assert(privileged);writes.push(args);return {data:{id:args.p_id,revision:args.p_expected_revision+1,published:args.p_action==='publish',archived_at:args.p_action==='archive'?'2026-11-04':null},error:null}}
+  if(name==='admin_question_library'&&libraryError)return {data:null,error:libraryError};
   if(name==='admin_question_library')return {data:{questions:[],total:0,counts:{all:0,draft:0,published:0,archived:0},offset:args.p_offset,limit:25},error:null};
   if(name==='create_matrix_question'){assert(privileged);writes.push(args);return {data:qid,error:null}}
   if(name==='edit_matrix_question'){assert(privileged);writes.push(args);return {data:null,error:null}}
   if(name==='edit_question_education'){assert(privileged);writes.push(args);return {data:null,error:null}}
   if(name==='start_exam_review_attempt')return missing?{data:null,error:{code:'PGRST202'}}:{data:{attemptId:id,questions:[original]},error:null};
   assert(privileged);assert.equal(name,'complete_exam_review_attempt');writes.push(args);const row=attempts.find(a=>a.id===args.p_attempt_id);row.completed_at='2026-11-04';row.earned=args.p_responses.reduce((n,r)=>n+r.earned,0);row.possible=args.p_responses.reduce((n,r)=>n+r.possible,0);return {data:{attemptId:id,earned:row.earned,possible:row.possible},error:null};
- },from(table){calls.push({table,privileged});let filters=[],start=0,end=Infinity,single=false;
-  const chain={select(){return chain},eq(key,value){filters.push(r=>r[key]===value);return chain},in(key,value){filters.push(r=>value.includes(r[key]));return chain},not(key,_op,value){filters.push(r=>r[key]!==value);return chain},order(){return chain},limit(){return chain},ilike(){return chain},range(a,b){start=a;end=b;return chain},maybeSingle(){single=true;return chain},single(){single=true;return chain},
-   then(resolve,reject){if(table===failTable)return Promise.resolve({data:null,error:{code:'XX000'}}).then(resolve,reject);if(table==='exam_review_items'&&missingSnapshots)return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject);let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_review_items'?snapshots:table==='questions'?liveQuestions:table==='question_solutions'?liveSolutions:[];rows=rows.filter(row=>filters.every(match=>match(row))).slice(start,end+1);return Promise.resolve({data:single?rows[0]??null:rows,error:null}).then(resolve,reject)}
+ },from(table){const call={table,privileged};calls.push(call);let filters=[],start=0,end=Infinity,single=false,columns='*',selectOptions={};
+  const chain={select(value,options={}){columns=value;selectOptions=options;call.columns=value;return chain},eq(key,value){filters.push(r=>r[key]===value);return chain},in(key,value){filters.push(r=>value.includes(r[key]));return chain},not(key,_op,value){filters.push(r=>r[key]!==value);return chain},order(){return chain},limit(){return chain},ilike(){return chain},range(a,b){start=a;end=b;return chain},maybeSingle(){single=true;return chain},single(){single=true;return chain},
+   then(resolve,reject){if(table==='questions'&&legacyColumns&&columns!=='*'&&columns.split(',').some(column=>!legacyColumns.includes(column)))return Promise.resolve({data:null,error:{code:'42703'}}).then(resolve,reject);if(table===failTable)return Promise.resolve({data:null,error:{code:'XX000'}}).then(resolve,reject);if(table==='exam_review_items'&&missingSnapshots)return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject);let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_review_items'?snapshots:table==='questions'?liveQuestions:table==='question_solutions'?liveSolutions:[];rows=rows.filter(row=>filters.every(match=>match(row)));const count=rows.length;rows=rows.slice(start,end+1);if(columns!=='*')rows=rows.map(row=>Object.fromEntries(columns.split(',').map(column=>[column,row[column]])));return Promise.resolve({data:selectOptions.head?null:single?rows[0]??null:rows,error:null,count:selectOptions.count?count:null}).then(resolve,reject)}
   };return chain;
  }}}
  const db=client(),service=client(true),cache=new Map();
  function load(path){if(cache.has(path))return cache.get(path);const js=ts.transpileModule(readFileSync(new URL('../'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const module={exports:{}};cache.set(path,module.exports);new Function('require','exports','module',js)(name=>{
    if(name==='next/server')return {NextResponse:{json:(data,options)=>Response.json(data,options)}};
    if(name==='@/lib/supabase/server')return {createClient:async()=>db};
-   if(name==='@/lib/supabase/admin')return {admin:()=>service};
+   if(name==='@/lib/supabase/admin')return {admin:()=>{if(adminUnavailable)throw Error('Missing server credentials');return service}};
    if(name==='@/lib/exam-review.mjs')return review;
    if(name==='@/lib/scoring.mjs')return scoring;
    if(name==='@/lib/ngn-admin-auth')return {requireNgnAdmin:async()=>administrator&&user?{id:user}:null};
    if(name==='@/lib/matrix.mjs')return matrix;
+   if(name==='@/lib/question-library-server')return load('lib/question-library-server.ts');
    if(name==='@/lib/question-authoring.mjs')return questionAuthoring;
    if(name==='@/lib/matrix-authoring.mjs')return matrixAuthoring;
    if(name==='@/lib/questions')return {categories:['Antepartum','Intrapartum','Postpartum','Newborn']};
@@ -177,4 +179,26 @@ test('new teaching fields never appear in student question payloads and are reve
  const h=harness({liveQuestions:[q],liveSolutions:[{question_id:qid,answer_key:'a',rationale:'Rationale',test_taking_tip:'Private exam strategy',answer_explanations:{a:'Private explanation'},rationale_format:'markdown'}]});
  const publicResponse=await h.load('app/api/questions/route.ts').GET({nextUrl:new URL('https://example.test?category=All')}),data=await publicResponse.json();assert.equal(data.questions[0].clinical_scenario,'Clinical scenario');assert(!JSON.stringify(data).includes('Private exam'));assert(!JSON.stringify(data).includes('Private explanation'));
  const checked=await h.load('app/api/study/check/route.ts').POST(post('',{questionId:qid,answer:'a'})),feedback=await checked.json();assert.equal(feedback.test_taking_tip,'Private exam strategy');assert.equal(feedback.answer_explanations.a,'Private explanation');assert.equal(feedback.earned,1);
+});
+
+test('missing Studio SQL still lists the existing bank without reading solutions or writing data',async()=>{
+ const questions=[{...original,published:true,created_at:'2026-01-01'},{...original,id:'20000000-0000-0000-0000-000000000002',published:false,created_at:'2026-01-02'}];
+ const h=harness({administrator:true,libraryError:{code:'PGRST202'},liveQuestions:questions,legacyColumns:['id','stem','category','type','published','created_at']});
+ const response=await h.load('app/api/admin/questions/library/route.ts').GET({nextUrl:new URL('https://example.test?status=all')}),data=await response.json();assert.equal(response.status,200);assert.equal(data.total,2);assert.equal(data.counts.published,1);assert.equal(data.counts.draft,1);assert.equal(data.managementReady,false);assert.equal(data.filtersReady.difficulty,false);assert.equal(data.questions[0].id,questions[0].id);assert.match(data.notice,/view-only/);assert(!h.calls.some(call=>call.table==='question_solutions'));assert.equal(h.writes.length,0);
+});
+test('fallback reads beyond 1000 rows and applies category/type/status/search filters before pagination',async()=>{
+ const questions=Array.from({length:1005},(_,i)=>({...original,id:String(i),stem:'Existing maternity question '+i,published:i%2===0,created_at:'2026-01-01'}));
+ const h=harness({administrator:true,libraryError:{code:'42883'},liveQuestions:questions});
+ const result=await h.load('app/api/admin/questions/library/route.ts').GET({nextUrl:new URL('https://example.test?status=all&offset=1000&category=Antepartum&type=single&search=maternity')}),data=await result.json();assert.equal(data.total,1005);assert.equal(data.questions.length,5);assert.equal(h.calls.filter(call=>call.table==='questions').length,3);assert.equal(h.writes.length,0);
+});
+test('a misleading zero-result RPC cannot hide question records that exist in the source table',async()=>{
+ const h=harness({administrator:true,liveQuestions:[{...original,published:true}]});const result=await h.load('app/api/admin/questions/library/route.ts').GET({nextUrl:new URL('https://example.test')}),data=await result.json();assert.equal(result.status,200);assert.equal(data.total,1);assert.equal(data.managementReady,false);assert.equal(data.questions[0].id,qid);
+});
+test('real database errors return unavailable rather than a fabricated empty question bank',async()=>{
+ const h=harness({administrator:true,libraryError:{code:'PGRST202'},failTable:'questions'});const response=await h.load('app/api/admin/questions/library/route.ts').GET({nextUrl:new URL('https://example.test')});assert.equal(response.status,503);assert.match((await response.json()).error,/does not mean your questions are missing/);assert.equal(h.writes.length,0);
+ const empty=harness({administrator:true,libraryError:{code:'PGRST202'},liveQuestions:[]});const result=await empty.load('app/api/admin/questions/library/route.ts').GET({nextUrl:new URL('https://example.test')}),data=await result.json();assert.equal(data.total,0);assert.equal(data.questions.length,0);
+});
+
+test('an unconfigured admin server connection returns a clear setup error without claiming the bank is empty',async()=>{
+ const h=harness({administrator:true,adminUnavailable:true});const response=await h.load('app/api/admin/questions/library/route.ts').GET({nextUrl:new URL('https://example.test')});assert.equal(response.status,503);const data=await response.json();assert.match(data.error,/server connection/);assert(!('total' in data));assert.equal(h.writes.length,0);
 });
