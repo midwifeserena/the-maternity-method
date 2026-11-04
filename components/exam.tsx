@@ -4,6 +4,7 @@ import {useRouter} from 'next/navigation';
 import {Bookmark,Calculator,Check,ChevronLeft,ChevronRight,Clock,Highlighter,ListChecks,LogOut,Pause,Play,Settings,Strikethrough,X} from 'lucide-react';
 import {calculateExpression,formatExamTime,isQuestionAnswered} from '@/lib/exam-tools.mjs';
 import type {Question,Category} from '@/lib/questions';
+import {ExamImages} from './exam-images';
 import './exam.css';
 
 type Answer=string|string[]|Record<string,string>;
@@ -20,13 +21,14 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
  const submitting=useRef(false),autoSubmitted=useRef(false);
  const [phase,setPhase]=useState<'loading'|'active'|'error'|'submitting'|'complete'>('loading');
  const [items,setItems]=useState<Question[]>([]),[index,setIndex]=useState(0);
+ const [attemptId,setAttemptId]=useState<string|null>(null),[reviewAvailable,setReviewAvailable]=useState(true);
  const [answers,setAnswers]=useState<Record<string,Answer>>({}),[feedback,setFeedback]=useState<Record<string,Feedback>>({});
  const [message,setMessage]=useState(''),[retry,setRetry]=useState(0),[elapsed,setElapsed]=useState(0),[paused,setPaused]=useState(false);
  const [flags,setFlags]=useState<string[]>([]),[highlights,setHighlights]=useState<string[]>([]),[strikes,setStrikes]=useState<Record<string,string[]>>({}),[strikeMode,setStrikeMode]=useState(false);
  const [tab,setTab]=useState(''),[panel,setPanel]=useState<Panel>(null),[checking,setChecking]=useState(false);
  const [theme,setTheme]=useState<'light'|'dark'>('light'),[preferencesReady,setPreferencesReady]=useState(false),[fontSize,setFontSize]=useState(16);
  const [calculation,setCalculation]=useState(''),[calculatorError,setCalculatorError]=useState(''),[sessionMark,setSessionMark]=useState('');
- const [result,setResult]=useState<{earned:number;possible:number}|null>(null);
+ const [result,setResult]=useState<{attemptId?:string;earned:number;possible:number}|null>(null);
  const remaining=Math.max(0,DURATION-elapsed),expired=mode==='test'&&remaining===0;
  const question=items[index],answer=question?answers[question.id]:undefined,review=question?feedback[question.id]:undefined;
  const answered=items.filter(item=>isQuestionAnswered(item,answers[item.id])).length;
@@ -47,23 +49,27 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
  },[panel]);
  useEffect(()=>{
   const controller=new AbortController();
-  setPhase('loading');setMessage('');setItems([]);setIndex(0);setAnswers({});setFeedback({});setResult(null);setFlags([]);setStrikes({});setHighlights([]);setPaused(false);setElapsed(0);setPanel(null);
+  setPhase('loading');setAttemptId(null);setMessage('');setItems([]);setIndex(0);setAnswers({});setFeedback({});setResult(null);setFlags([]);setStrikes({});setHighlights([]);setPaused(false);setElapsed(0);setPanel(null);
   clock.current={milliseconds:0,started:null};autoSubmitted.current=false;submitting.current=false;
   (async()=>{
    try{
-    const response=await fetch('/api/questions?category='+encodeURIComponent(category),{cache:'no-store',signal:controller.signal});
+    let ids=selectedIds;
+    if(!ids){
+     const bank=await fetch('/api/questions?category='+encodeURIComponent(category),{cache:'no-store',signal:controller.signal});
+     const data=await bank.json();if(!bank.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not load questions.');
+     ids=(data.questions as Question[]).slice(0,50).map(item=>item.id);
+    }
+    const response=await fetch('/api/exams/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionIds:ids,mode}),signal:controller.signal});
     const data=await response.json();if(controller.signal.aborted)return;
-    if(!response.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not load your questions.');
-    const available=data.questions as Question[];
-    const byId=new Map(available.map(item=>[item.id,item]));
-    const selected=selectedIds?selectedIds.flatMap(id=>{const item=byId.get(id);return item?[item]:[]}):available.slice(0,50);
-    if(selectedIds&&(selectedIds.length>50||selected.length!==selectedIds.length))throw Error('Some selected questions are no longer available. Return to the builder and generate another test.');
-    if(!selected.length)throw Error('No published questions are available for this test.');
+    if(!response.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not prepare your test.');
+    const selected=data.questions as Question[];
+    if(!selected.length||selected.length!==ids.length)throw Error('Some selected questions are no longer available. Return to the builder and generate another test.');
+    setAttemptId(data.attemptId??null);setReviewAvailable(Boolean(data.reviewSnapshotAvailable));
     setItems(selected);setPhase('active');
    }catch(error){if(!controller.signal.aborted){setMessage(error instanceof Error?error.message:'Could not load your test.');setPhase('error')}}
   })();
   return()=>controller.abort();
- },[category,selectedIds,retry]);
+ },[category,selectedIds,retry,mode]);
  useEffect(()=>{
   if(phase!=='active'||paused||!items.length)return;
   const activeClock=clock.current;activeClock.started=performance.now();
@@ -82,12 +88,12 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
   const activeSeconds=Math.floor((activeClock.milliseconds+(activeClock.started===null?0:Math.max(0,performance.now()-activeClock.started)))/1000);
   const duration=mode==='test'?Math.min(DURATION,activeSeconds):activeSeconds;
   try{
-   const response=await fetch('/api/exams/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,questionIds:items.map(item=>item.id),answers,durationSeconds:duration})});
+   const response=await fetch('/api/exams/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,questionIds:items.map(item=>item.id),answers,durationSeconds:duration,attemptId:attemptId??undefined})});
    const data=await response.json();if(!response.ok)throw Error(data.error||'Could not save your test.');
    setResult(data);setPhase('complete');
   }catch(error){setMessage(error instanceof Error?error.message:'Could not save your test. Your responses are still here; please try again.');setPaused(true);setPhase('active')}
   finally{submitting.current=false}
- },[answers,items,mode,result]);
+ },[answers,items,mode,result,attemptId]);
  useEffect(()=>{if(expired&&phase==='active'&&!autoSubmitted.current){autoSubmitted.current=true;setPaused(true);void finish()}},[expired,phase,finish]);
 
  function move(next:number){setIndex(next);setTab('');setPanel(null);setMessage('');requestAnimationFrame(()=>stem.current?.focus())}
@@ -96,7 +102,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
   if(!question||checking||!isQuestionAnswered(question,answer))return;
   setChecking(true);setMessage('');
   try{
-   const response=await fetch('/api/study/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:question.id,answer})});
+   const response=await fetch('/api/study/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionId:question.id,answer,attemptId:attemptId??undefined})});
    const data=await response.json();if(!response.ok)throw Error(data.error||'Could not check your answer.');
    setFeedback(current=>({...current,[question.id]:data}));
   }catch(error){setMessage(error instanceof Error?error.message:'Could not check your answer. Please try again.')}finally{setChecking(false)}
@@ -122,20 +128,22 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
    {phase==='loading'?<p role="status">Loading your test…</p>
     :phase==='error'?<section className="exam-centered"><h1>Test unavailable</h1><p role="alert">{message}</p><div className="exam-actions"><button type="button" onClick={()=>setRetry(value=>value+1)}>Try again</button><button type="button" onClick={exit}>Return to test builder</button></div></section>
     :phase==='submitting'?<section className="exam-centered" role="status"><h1>Saving your test…</h1><p>Please keep this page open.</p></section>
-    :result?<section className="exam-centered"><p>Test submitted</p><h1>Your results</h1><strong className="exam-score">{result.possible?Math.round(result.earned/result.possible*100):0}%</strong><p>{result.earned} of {result.possible} available points</p><p>Your attempt is saved in Previous Tests and Performance.</p><div className="exam-actions"><button type="button" onClick={()=>router.push('/previous-tests')}>View previous tests</button><button type="button" onClick={exit}>Return to test builder</button></div></section>
+    :result?<section className="exam-centered"><p>Test submitted</p><h1>Your results</h1><strong className="exam-score">{result.possible?Math.round(result.earned/result.possible*100):0}%</strong><p>{result.earned} of {result.possible} available points</p><p>Your attempt is saved in Previous Tests and Performance.</p><div className="exam-actions"><button type="button" onClick={()=>router.push('/previous-tests')}>View previous tests</button>{result.attemptId&&<button type="button" onClick={()=>router.push('/previous-tests/'+result.attemptId)}>Review this exam</button>}<button type="button" onClick={exit}>Return to test builder</button></div></section>
     :paused?<section className="exam-centered"><h1>{expired?'Time is up':'Test paused'}</h1><p>{expired?'Submit your responses to save this attempt.':'Your questions are hidden and the timer is stopped.'}</p>{message&&<p role="alert">{message}</p>}<div className="exam-actions">{expired?<button type="button" onClick={()=>void finish()}>Retry submission</button>:<><button type="button" onClick={()=>{setPaused(false);setMessage('')}}>Resume test</button><button type="button" onClick={()=>setPanel('end')}>End test</button></>}</div></section>
     :question&&<div className={chartTabs.length?'exam-question-layout exam-with-chart':'exam-question-layout'}>
      {chartTabs.length>0&&<aside className="exam-chart" aria-label="Patient chart"><h2>Patient chart</h2><div className="exam-chart-tabs" role="tablist" aria-label="Clinical chart sections">{chartTabs.map((title,n)=><button type="button" role="tab" id={'exam-chart-tab-'+n} aria-selected={currentTab===title} aria-controls="exam-chart-panel" key={title} onClick={()=>setTab(title)}>{title}</button>)}</div><div id="exam-chart-panel" role="tabpanel" aria-labelledby={'exam-chart-tab-'+chartTabs.indexOf(currentTab)} className="exam-chart-content">{chart[currentTab]}</div></aside>}
      <article className="exam-question">
+      {!reviewAvailable&&<p className="exam-question-kind">Detailed question snapshots are not enabled for this session.</p>}
       <p className="exam-question-kind">{question.category} · {question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
       <h1 ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}>{question.stem}</h1>
+      <ExamImages images={question.images} label="Question image"/>
       {question.type==='matrix'?<div className="exam-matrix-scroll"><table className="exam-matrix"><thead><tr><th scope="col">Clinical finding</th>{question.options.map(option=><th scope="col" key={option.id}>{option.label}</th>)}</tr></thead><tbody>{question.matrix_rows?.map(row=><tr key={row.id}><th scope="row">{row.label}</th>{question.options.map(option=><td key={option.id}><input type="radio" name={question.id+'-'+row.id} disabled={Boolean(review)||checking} checked={(answer as Record<string,string>|undefined)?.[row.id]===option.id} aria-label={row.label+': '+option.label} onChange={()=>choose({...((answer as Record<string,string>)??{}),[row.id]:option.id})}/></td>)}</tr>)}</tbody></table></div>
        :<fieldset className="exam-options"><legend className="exam-sr-only">{question.type==='sata'?'Select all correct answers':'Select one answer'}</legend>{question.options.map((option,n)=>{
         const selected=question.type==='single'?answer===option.id:Array.isArray(answer)&&answer.includes(option.id);
         const correct=Boolean(review&&(Array.isArray(review.answer_key)?review.answer_key.includes(option.id):review.answer_key===option.id));
         const crossed=(strikes[question.id]??[]).includes(option.id);
         return <div className={'exam-option-row'+(review?(correct?' exam-option-correct':selected?' exam-option-incorrect':''):'')} key={option.id}>
-         <label className="exam-option"><input type={question.type==='single'?'radio':'checkbox'} name={question.id} disabled={Boolean(review)||checking} checked={Boolean(selected)} onChange={()=>choose(question.type==='single'?option.id:selected?(answer as string[]).filter(id=>id!==option.id):[...(Array.isArray(answer)?answer:[]),option.id])}/><span className="exam-option-number">{n+1}.</span><span className={crossed?'exam-option-crossed':''}>{option.label}</span>{correct&&<Check size={18} aria-label="Correct option"/>}</label>
+         <label className="exam-option"><input type={question.type==='single'?'radio':'checkbox'} name={question.id} disabled={Boolean(review)||checking} checked={Boolean(selected)} onChange={()=>choose(question.type==='single'?option.id:selected?(answer as string[]).filter(id=>id!==option.id):[...(Array.isArray(answer)?answer:[]),option.id])}/><span className="exam-option-number">{n+1}.</span><span className={crossed?'exam-option-crossed':''}>{option.label}<ExamImages images={option.images} label="Answer choice image"/></span>{correct&&<Check size={18} aria-label="Correct option"/>}</label>
          {strikeMode&&!review&&<button type="button" className="exam-strike-button" aria-label={'Strike option '+(n+1)} aria-pressed={crossed} onClick={()=>setStrikes(current=>({...current,[question.id]:crossed?(current[question.id]??[]).filter(id=>id!==option.id):[...(current[question.id]??[]),option.id]}))}><Strikethrough size={17}/></button>}
         </div>;
        })}</fieldset>}

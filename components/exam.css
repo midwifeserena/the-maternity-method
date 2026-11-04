@@ -85,3 +85,8 @@
 .exam-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(max-width:1050px){.exam-topbar{grid-template-columns:1fr 1fr}.exam-brand{display:none}.exam-meta{gap:12px}.exam-with-chart{grid-template-columns:minmax(240px,40%) minmax(0,1fr);gap:18px}.exam-session-mark{font-size:10px}}
 @media(max-width:700px){.exam-topbar{grid-template-columns:1fr;gap:4px;padding:7px 12px}.exam-meta{justify-content:space-between;font-size:13px}.exam-toolbar-spacer{display:none}.exam-toolbar{gap:0;justify-content:space-between}.exam-toolbar button{font-size:12px;gap:5px;padding:6px}.exam-main{padding:20px 13px 30px}.exam-with-chart{display:flex;flex-direction:column}.exam-chart{width:100%}.exam-options{margin-left:0}.exam-option{gap:10px;padding:9px 3px}.exam-option-number{min-width:14px}.exam-shell .exam-submit-answer{margin-left:0}.exam-footer{flex-wrap:wrap}.exam-footer button{font-size:13px;padding:9px 7px;gap:3px;min-height:42px}.exam-session-mark{order:3;width:100%;padding:3px;font-size:9px}.exam-footer-group{flex-shrink:1}.exam-popup{padding:17px}.exam-centered{margin:25px auto}.exam-matrix th,.exam-matrix td{padding:9px}.exam-chart-tabs button{font-size:12px}}
+.exam-images{display:grid;gap:14px;margin:16px 0}
+.exam-images figure{margin:0;max-width:100%}
+.exam-images img{display:block;max-width:100%;height:auto;max-height:480px;object-fit:contain;border:1px solid var(--exam-border)}
+.exam-images figcaption{font-size:12px;color:var(--exam-muted);margin-top:5px}
+.exam-images a{color:var(--exam-accent);text-decoration:underline}
