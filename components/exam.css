@@ -98,3 +98,5 @@
 .matrix-studio-preview{--exam-border:#B38585;--exam-text:#4E3629;--exam-muted:#6c5550;--exam-focus:#8E4A55;--exam-font-size:16px;background:#FFF9F2;color:#4E3629}.exam-matrix-choice input{width:20px;height:20px;accent-color:#8E4A55}
 
 .question-studio fieldset{min-width:0}.question-studio .input{min-width:0;max-width:100%}.question-studio section{min-width:0}.exam-nursing-tip{overflow-wrap:anywhere}
+
+.exam-clinical-scenario{font-size:var(--exam-font-size,16px);line-height:1.7;white-space:pre-wrap;margin:0 0 24px}.exam-answer-explanations{margin:20px 0;border-top:1px solid var(--exam-border);padding-top:18px}.exam-answer-explanations h3{font-size:18px}.exam-answer-explanations>div{margin-top:16px}.exam-answer-explanations p{white-space:pre-wrap}

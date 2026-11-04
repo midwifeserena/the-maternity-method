@@ -1,2 +1,2 @@
 export function scoreQuestion(question:{type:string;answer_key:any;matrix_mode?:'single'|'multiple';matrix_rows?:{id:string}[]},answer:any):{earned:number;possible:number};
-export function publicQuestion<T extends Record<string,any>>(question:T):Omit<T,'answer_key'|'rationale'|'rationale_image_url'|'rationale_image_alt'|'rationale_images'|'nursing_tip'|'row_explanations'>;
+export function publicQuestion<T extends Record<string,any>>(question:T):Omit<T,'answer_key'|'rationale'|'rationale_image_url'|'rationale_image_alt'|'rationale_images'|'nursing_tip'|'row_explanations'|'test_taking_tip'|'answer_explanations'|'rationale_format'>;

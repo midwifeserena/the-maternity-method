@@ -6,6 +6,7 @@ import * as review from '../lib/exam-review.mjs';
 import * as scoring from '../lib/scoring.mjs';
 import * as education from '../lib/question-education.mjs';
 import * as matrix from '../lib/matrix.mjs';
+import * as questionAuthoring from '../lib/question-authoring.mjs';
 import * as matrixAuthoring from '../lib/matrix-authoring.mjs';
 const owner='10000000-0000-0000-0000-000000000001',other='10000000-0000-0000-0000-000000000002',id='30000000-0000-0000-0000-000000000001',qid='20000000-0000-0000-0000-000000000001';
 const original={id:qid,type:'single',category:'Antepartum',stem:'Original archived question',options:[{id:'a',label:'Original A'},{id:'b',label:'B'}],matrix_rows:[]};
@@ -14,13 +15,15 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
  const calls=[],writes=[];
  function client(privileged=false){return {storage:{from(){return {createSignedUrls:async paths=>({data:paths.map(path=>({path,signedUrl:'https://example.test/signed/'+path})),error:null}),createSignedUrl:async path=>({data:{signedUrl:'https://example.test/signed/'+path},error:null}),upload:async(path,bytes,options)=>{writes.push({upload:path,size:bytes.length,options});return {data:{path},error:null}}}}},auth:{getUser:async()=>({data:{user:user?{id:user}:null}})},rpc:async(name,args)=>{
   calls.push({rpc:name,privileged,args});
+  if(name==='manage_question_studio'){assert(privileged);writes.push(args);return {data:{id:args.p_id,revision:args.p_expected_revision+1,published:args.p_action==='publish',archived_at:args.p_action==='archive'?'2026-11-04':null},error:null}}
+  if(name==='admin_question_library')return {data:{questions:[],total:0,counts:{all:0,draft:0,published:0,archived:0},offset:args.p_offset,limit:25},error:null};
   if(name==='create_matrix_question'){assert(privileged);writes.push(args);return {data:qid,error:null}}
   if(name==='edit_matrix_question'){assert(privileged);writes.push(args);return {data:null,error:null}}
   if(name==='edit_question_education'){assert(privileged);writes.push(args);return {data:null,error:null}}
   if(name==='start_exam_review_attempt')return missing?{data:null,error:{code:'PGRST202'}}:{data:{attemptId:id,questions:[original]},error:null};
   assert(privileged);assert.equal(name,'complete_exam_review_attempt');writes.push(args);const row=attempts.find(a=>a.id===args.p_attempt_id);row.completed_at='2026-11-04';row.earned=args.p_responses.reduce((n,r)=>n+r.earned,0);row.possible=args.p_responses.reduce((n,r)=>n+r.possible,0);return {data:{attemptId:id,earned:row.earned,possible:row.possible},error:null};
  },from(table){calls.push({table,privileged});let filters=[],start=0,end=Infinity,single=false;
-  const chain={select(){return chain},eq(key,value){filters.push(r=>r[key]===value);return chain},in(key,value){filters.push(r=>value.includes(r[key]));return chain},not(key,_op,value){filters.push(r=>r[key]!==value);return chain},order(){return chain},ilike(){return chain},range(a,b){start=a;end=b;return chain},maybeSingle(){single=true;return chain},single(){single=true;return chain},
+  const chain={select(){return chain},eq(key,value){filters.push(r=>r[key]===value);return chain},in(key,value){filters.push(r=>value.includes(r[key]));return chain},not(key,_op,value){filters.push(r=>r[key]!==value);return chain},order(){return chain},limit(){return chain},ilike(){return chain},range(a,b){start=a;end=b;return chain},maybeSingle(){single=true;return chain},single(){single=true;return chain},
    then(resolve,reject){if(table===failTable)return Promise.resolve({data:null,error:{code:'XX000'}}).then(resolve,reject);if(table==='exam_review_items'&&missingSnapshots)return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject);let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_review_items'?snapshots:table==='questions'?liveQuestions:table==='question_solutions'?liveSolutions:[];rows=rows.filter(row=>filters.every(match=>match(row))).slice(start,end+1);return Promise.resolve({data:single?rows[0]??null:rows,error:null}).then(resolve,reject)}
   };return chain;
  }}}
@@ -33,6 +36,7 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
    if(name==='@/lib/scoring.mjs')return scoring;
    if(name==='@/lib/ngn-admin-auth')return {requireNgnAdmin:async()=>administrator&&user?{id:user}:null};
    if(name==='@/lib/matrix.mjs')return matrix;
+   if(name==='@/lib/question-authoring.mjs')return questionAuthoring;
    if(name==='@/lib/matrix-authoring.mjs')return matrixAuthoring;
    if(name==='@/lib/questions')return {categories:['Antepartum','Intrapartum','Postpartum','Newborn']};
    if(name==='@/lib/question-education.mjs')return education;
@@ -144,4 +148,33 @@ test('only admins create validated draft matrices and explicitly publish; edits 
 test('private media signing never transforms stored responses, answer identifiers, rationale text or alt text',async()=>{
  const h=harness(),uri='storage://question-media/q/reference.png',source={question_image_url:uri,question_image_alt:uri,stem:uri,answer_key:uri,response:uri,nursing_tip:uri,options:[{id:uri,label:'Original',images:[{url:uri,alt:'Diagram'}]}]};
  const [resolved]=await h.load('lib/question-media-server.ts').resolveMediaRecords([source]);assert.match(resolved.question_image_url,/signed/);assert.match(resolved.options[0].images[0].url,/signed/);assert.equal(resolved.options[0].id,uri);assert.equal(resolved.question_image_alt,uri);assert.equal(resolved.stem,uri);assert.equal(resolved.answer_key,uri);assert.equal(resolved.response,uri);assert.equal(resolved.nursing_tip,uri);assert.equal(source.question_image_url,uri);assert.equal(h.writes.length,0);
+});
+
+test('full studio library and all management actions reject students before privileged access',async()=>{
+ const h=harness();assert.equal((await h.load('app/api/admin/questions/library/route.ts').GET({nextUrl:new URL('https://example.test')})).status,403);
+ for(const action of ['create','save','publish','archive','duplicate','restore'])assert.equal((await h.load('app/api/admin/questions/manage/route.ts').POST(post('',{action,id:qid,revision:0,document:questionAuthoring.questionDocument()}))).status,403);
+ assert.equal(h.calls.length,0);assert.equal(h.writes.length,0);
+});
+test('draft creation can preserve incomplete work; publishing validates the stored question intentionally',async()=>{
+ const h=harness({administrator:true}),api=h.load('app/api/admin/questions/manage/route.ts');
+ const draft=questionAuthoring.questionDocument();assert.equal((await api.POST(post('',{action:'create',id:qid,revision:0,document:draft}))).status,201);assert.equal(h.writes[0].p_action,'create');assert(!('published' in h.writes[0].p_question));
+ const valid=await api.POST(post('',{action:'publish',id:qid,revision:0}));assert.equal(valid.status,200);assert.equal(h.writes[1].p_action,'publish');
+ const invalid=harness({administrator:true,liveSolutions:[{question_id:qid,answer_key:null,rationale:''}]});const rejected=await invalid.load('app/api/admin/questions/manage/route.ts').POST(post('',{action:'publish',id:qid,revision:0}));assert.equal(rejected.status,400);assert((await rejected.json()).fields.answer_key);assert.equal(invalid.writes.length,0);
+});
+test('save keeps stable IDs and revision; archive/duplicate never request deletion or student score changes',async()=>{
+ const h=harness({administrator:true}),api=h.load('app/api/admin/questions/manage/route.ts'),doc=questionAuthoring.questionDocument(original,{answer_key:'a',rationale:'Existing rationale'});
+ assert.equal((await api.POST(post('',{action:'save',id:qid,revision:4,document:doc}))).status,200);assert.equal(h.writes[0].p_id,qid);assert.equal(h.writes[0].p_expected_revision,4);assert.deepEqual(h.writes[0].p_question.options,original.options);
+ for(const action of ['duplicate','archive','restore'])assert([200,201].includes((await api.POST(post('',{action,id:qid,revision:4}))).status));
+ assert(h.writes.every(write=>write.p_action!=='delete'));assert.equal(h.attempts[0].earned,0);
+ assert.equal((await api.POST(post('',{action:'delete',id:qid,revision:4}))).status,400);
+});
+test('library validates filters and pagination and requests an exact-count service query',async()=>{
+ const h=harness({administrator:true}),api=h.load('app/api/admin/questions/library/route.ts');const response=await api.GET({nextUrl:new URL('https://example.test?category=Antepartum&type=matrix-multiple&status=draft&difficulty=hard&offset=25&search=bleeding')});assert.equal(response.status,200);const call=h.calls.find(call=>call.rpc==='admin_question_library');assert.equal(call.args.p_offset,25);assert.equal(call.args.p_type,'matrix-multiple');assert.equal(call.args.p_search,'bleeding');
+ assert.equal((await api.GET({nextUrl:new URL('https://example.test?difficulty=impossible')})).status,400);assert.equal((await api.GET({nextUrl:new URL('https://example.test?offset=-1')})).status,400);
+});
+test('new teaching fields never appear in student question payloads and are revealed only by the existing permitted study path',async()=>{
+ const q={...original,published:true,clinical_scenario:'Clinical scenario',content_format:'markdown',test_taking_tip:'Private exam strategy',answer_explanations:{a:'Private explanation'}};
+ const h=harness({liveQuestions:[q],liveSolutions:[{question_id:qid,answer_key:'a',rationale:'Rationale',test_taking_tip:'Private exam strategy',answer_explanations:{a:'Private explanation'},rationale_format:'markdown'}]});
+ const publicResponse=await h.load('app/api/questions/route.ts').GET({nextUrl:new URL('https://example.test?category=All')}),data=await publicResponse.json();assert.equal(data.questions[0].clinical_scenario,'Clinical scenario');assert(!JSON.stringify(data).includes('Private exam'));assert(!JSON.stringify(data).includes('Private explanation'));
+ const checked=await h.load('app/api/study/check/route.ts').POST(post('',{questionId:qid,answer:'a'})),feedback=await checked.json();assert.equal(feedback.test_taking_tip,'Private exam strategy');assert.equal(feedback.answer_explanations.a,'Private explanation');assert.equal(feedback.earned,1);
 });

@@ -4,13 +4,15 @@ import {useRouter} from 'next/navigation';
 import {Bookmark,Calculator,Check,ChevronLeft,ChevronRight,Clock,Highlighter,ListChecks,LogOut,Pause,Play,Settings,Strikethrough,X} from 'lucide-react';
 import {calculateExpression,formatExamTime,isQuestionAnswered} from '@/lib/exam-tools.mjs';
 import type {Question,Category} from '@/lib/questions';
+import {FormattedText} from './formatted-text';
+import {AnswerExplanations} from './answer-explanations';
 import {QuestionMatrix} from './question-matrix';
 import {NursingTip} from './nursing-tip';
 import {ExamImages} from './exam-images';
 import './exam.css';
 
 type Answer=string|string[]|Record<string,string|string[]>;
-type Feedback={earned:number;possible:number;rationale:string;answer_key:unknown;rationale_images?:{url:string;alt:string}[];nursing_tip?:string|null;row_explanations?:Record<string,string>};
+type Feedback={earned:number;possible:number;rationale:string;answer_key:unknown;rationale_images?:{url:string;alt:string}[];nursing_tip?:string|null;row_explanations?:Record<string,string>;answer_explanations?:Record<string,string>;rationale_format?:'plain'|'markdown';test_taking_tip?:string|null};
 type Panel='settings'|'calculator'|'navigator'|'end'|null;
 const DURATION=30*60;
 const THEME_KEY='maternity-method-exam-theme';
@@ -137,7 +139,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
      <article className="exam-question">
       {!reviewAvailable&&<p className="exam-question-kind">Detailed question snapshots are not enabled for this session.</p>}
       <p className="exam-question-kind">{question.category} · {question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
-      <h1 ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}>{question.stem}</h1>
+      <>{question.clinical_scenario&&<p className="exam-clinical-scenario"><FormattedText text={question.clinical_scenario} format={question.content_format}/></p>}</><h1 ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}><FormattedText text={question.stem} format={question.content_format}/></h1>
       <ExamImages images={question.images} label="Question image"/>
       {question.type==='matrix'?<QuestionMatrix question={question} answer={answer} solution={review?.answer_key} rowExplanations={review?.row_explanations} disabled={Boolean(review)||checking} onChange={choose}/>
        :<fieldset className="exam-options"><legend className="exam-sr-only">{question.type==='sata'?'Select all correct answers':'Select one answer'}</legend>{question.options.map((option,n)=>{
@@ -150,7 +152,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
         </div>;
        })}</fieldset>}
       {mode==='study'&&!review&&<button type="button" className="exam-submit-answer" disabled={checking||!isQuestionAnswered(question,answer)} onClick={()=>void check()}>{checking?'Checking…':'Submit answer'}</button>}
-      {review&&<section className="exam-rationale" aria-label="Answer rationale"><h2>Answer rationale · {review.earned}/{review.possible} points</h2><p>{review.rationale}</p><ExamImages images={review.rationale_images} label="Rationale image"/><NursingTip text={review.nursing_tip}/></section>}
+      {review&&<section className="exam-rationale" aria-label="Answer rationale"><h2>Answer rationale · {review.earned}/{review.possible} points</h2><p><FormattedText text={review.rationale} format={review.rationale_format}/></p>{question.type!=='matrix'&&<AnswerExplanations options={question.options} answerKey={review.answer_key} explanations={review.answer_explanations}/>}<ExamImages images={review.rationale_images} label="Rationale image"/><NursingTip text={review.nursing_tip}/><NursingTip text={review.test_taking_tip} title="NCLEX Test-taking Tip"/></section>}
       {message&&<p role="alert" className="exam-error">{message}</p>}
      </article>
     </div>}
