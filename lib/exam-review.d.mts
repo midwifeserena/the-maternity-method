@@ -1,8 +1,8 @@
 export type ReviewImage={url:string;alt:string};
-export type ArchivedQuestion={id:string;category:string;type:'single'|'sata'|'matrix';stem:string;options:{id:string;label:string;images:ReviewImage[]}[];matrix_rows:{id:string;label:string}[];chart:Record<string,string>;images:ReviewImage[]};
+export type ArchivedQuestion={id:string;category:string;type:'single'|'sata'|'matrix';matrix_mode?:'single'|'multiple';stem:string;options:{id:string;label:string;images:ReviewImage[]}[];matrix_rows:{id:string;label:string}[];chart:Record<string,string>;images:ReviewImage[]};
 export type ReviewStatus='correct'|'incorrect'|'partial'|'unanswered'|'unavailable';
 export type AttemptSummary={id:string;name:string;mode:'study'|'test';completedAt:string;earned:number;possible:number;percentage:number|null;questionCount:number|null;recordedCount:number;correctCount:number|null;incorrectCount:number|null;unansweredCount:number|null;partialCount:number|null;countsScope:'complete'|'recorded';snapshotStage:'start'|'submission'|null;reviewAvailability:'archived'|'limited'|'none'};
-export type ReviewItem={id:string;position:number|null;contentSource:'archived'|'current'|'unavailable';selectionUnavailable:boolean;question:ArchivedQuestion|null;responseRecorded:boolean;response:unknown;earned:number|null;possible:number|null;status:ReviewStatus;correctAnswer:unknown;rationale:string|null;rationaleImages:ReviewImage[]};
+export type ReviewItem={id:string;position:number|null;contentSource:'archived'|'current'|'unavailable';selectionUnavailable:boolean;question:ArchivedQuestion|null;responseRecorded:boolean;response:unknown;earned:number|null;possible:number|null;status:ReviewStatus;correctAnswer:unknown;rationale:string|null;rationaleImages:ReviewImage[];nursingTip:string|null;rowExplanations:Record<string,string>};
 export type ExamReviewData={attempt:AttemptSummary;items:ReviewItem[];warnings:string[]};
 export function safeReviewImageUrl(value:unknown):string|null;
 export function reviewImages(source:unknown):ReviewImage[];

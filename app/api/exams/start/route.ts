@@ -1,3 +1,5 @@
+import {resolveMediaRecords} from '@/lib/question-media-server';
+import {publicSnapshot} from '@/lib/exam-review.mjs';
 import {NextRequest,NextResponse} from 'next/server';
 import {createClient} from '@/lib/supabase/server';
 import {validExamId,startReviewAttempt,missingReviewFunction} from '@/lib/exam-review-server';
@@ -11,8 +13,8 @@ export async function POST(request:NextRequest){
  if(!result.error)return NextResponse.json({...result.data,reviewSnapshotAvailable:true},{headers:{'Cache-Control':'no-store'}});
  if(!missingReviewFunction(result.error))return NextResponse.json({error:'This test could not be prepared. One or more questions may no longer be available.'},{status:400});
  // Compatibility until the proposed migration is explicitly approved and installed.
- const {data,error}=await db.from('questions').select('id,category,type,stem,options,matrix_rows,chart').eq('published',true).in('id',ids);
+ const {data,error}=await db.from('questions').select('*').eq('published',true).in('id',ids);
  if(error||data?.length!==ids.length)return NextResponse.json({error:'One or more questions are unavailable'},{status:400});
- const byId=new Map(data.map(question=>[question.id,question]));
+ const byId=new Map((await resolveMediaRecords(data)).map(question=>[question.id,publicSnapshot(question)]));
  return NextResponse.json({attemptId:null,questions:ids.map(id=>byId.get(id)),reviewSnapshotAvailable:false},{headers:{'Cache-Control':'no-store'}});
 }

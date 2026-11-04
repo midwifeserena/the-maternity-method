@@ -4,11 +4,13 @@ import {useRouter} from 'next/navigation';
 import {Bookmark,Calculator,Check,ChevronLeft,ChevronRight,Clock,Highlighter,ListChecks,LogOut,Pause,Play,Settings,Strikethrough,X} from 'lucide-react';
 import {calculateExpression,formatExamTime,isQuestionAnswered} from '@/lib/exam-tools.mjs';
 import type {Question,Category} from '@/lib/questions';
+import {QuestionMatrix} from './question-matrix';
+import {NursingTip} from './nursing-tip';
 import {ExamImages} from './exam-images';
 import './exam.css';
 
-type Answer=string|string[]|Record<string,string>;
-type Feedback={earned:number;possible:number;rationale:string;answer_key:unknown};
+type Answer=string|string[]|Record<string,string|string[]>;
+type Feedback={earned:number;possible:number;rationale:string;answer_key:unknown;rationale_images?:{url:string;alt:string}[];nursing_tip?:string|null;row_explanations?:Record<string,string>};
 type Panel='settings'|'calculator'|'navigator'|'end'|null;
 const DURATION=30*60;
 const THEME_KEY='maternity-method-exam-theme';
@@ -137,7 +139,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
       <p className="exam-question-kind">{question.category} · {question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
       <h1 ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}>{question.stem}</h1>
       <ExamImages images={question.images} label="Question image"/>
-      {question.type==='matrix'?<div className="exam-matrix-scroll"><table className="exam-matrix"><thead><tr><th scope="col">Clinical finding</th>{question.options.map(option=><th scope="col" key={option.id}>{option.label}</th>)}</tr></thead><tbody>{question.matrix_rows?.map(row=><tr key={row.id}><th scope="row">{row.label}</th>{question.options.map(option=><td key={option.id}><input type="radio" name={question.id+'-'+row.id} disabled={Boolean(review)||checking} checked={(answer as Record<string,string>|undefined)?.[row.id]===option.id} aria-label={row.label+': '+option.label} onChange={()=>choose({...((answer as Record<string,string>)??{}),[row.id]:option.id})}/></td>)}</tr>)}</tbody></table></div>
+      {question.type==='matrix'?<QuestionMatrix question={question} answer={answer} solution={review?.answer_key} rowExplanations={review?.row_explanations} disabled={Boolean(review)||checking} onChange={choose}/>
        :<fieldset className="exam-options"><legend className="exam-sr-only">{question.type==='sata'?'Select all correct answers':'Select one answer'}</legend>{question.options.map((option,n)=>{
         const selected=question.type==='single'?answer===option.id:Array.isArray(answer)&&answer.includes(option.id);
         const correct=Boolean(review&&(Array.isArray(review.answer_key)?review.answer_key.includes(option.id):review.answer_key===option.id));
@@ -148,7 +150,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
         </div>;
        })}</fieldset>}
       {mode==='study'&&!review&&<button type="button" className="exam-submit-answer" disabled={checking||!isQuestionAnswered(question,answer)} onClick={()=>void check()}>{checking?'Checking…':'Submit answer'}</button>}
-      {review&&<section className="exam-rationale" aria-label="Answer rationale"><h2>Answer rationale · {review.earned}/{review.possible} points</h2><p>{review.rationale}</p></section>}
+      {review&&<section className="exam-rationale" aria-label="Answer rationale"><h2>Answer rationale · {review.earned}/{review.possible} points</h2><p>{review.rationale}</p><ExamImages images={review.rationale_images} label="Rationale image"/><NursingTip text={review.nursing_tip}/></section>}
       {message&&<p role="alert" className="exam-error">{message}</p>}
      </article>
     </div>}

@@ -1,3 +1,4 @@
+import {educationFeedback} from '@/lib/question-media-server';
 import {NextRequest,NextResponse} from 'next/server';
 import {createClient} from '@/lib/supabase/server';
 import {admin} from '@/lib/supabase/admin';
@@ -17,11 +18,11 @@ export async function POST(request:NextRequest){
   const snapshots=await frozenItems(body.attemptId),item=snapshots.data?.find(row=>row.question_id===body.questionId);
   if(snapshots.error||!item)return NextResponse.json({error:'Saved question unavailable'},{status:404});
   const solution=item.solution_snapshot;
-  return NextResponse.json({...scoreQuestion({...item.question_snapshot,answer_key:solution.answer_key},body.answer),rationale:solution.rationale,answer_key:solution.answer_key},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({...scoreQuestion({...item.question_snapshot,answer_key:solution.answer_key},body.answer),rationale:solution.rationale,answer_key:solution.answer_key,...await educationFeedback(solution)},{headers:{'Cache-Control':'no-store'}});
  }
- const {data:question,error}=await db.from('questions').select('id,type,matrix_rows').eq('id',body.questionId).eq('published',true).single();
+ const {data:question,error}=await db.from('questions').select('*').eq('id',body.questionId).eq('published',true).single();
  if(error||!question)return NextResponse.json({error:'Question not found'},{status:404});
- const {data:solution}=await admin().from('question_solutions').select('answer_key,rationale').eq('question_id',question.id).single();
+ const {data:solution}=await admin().from('question_solutions').select('*').eq('question_id',question.id).single();
  if(!solution)return NextResponse.json({error:'Solution unavailable'},{status:500});
- return NextResponse.json({...scoreQuestion({...question,answer_key:solution.answer_key},body.answer),rationale:solution.rationale,answer_key:solution.answer_key},{headers:{'Cache-Control':'no-store'}});
+ return NextResponse.json({...scoreQuestion({...question,answer_key:solution.answer_key},body.answer),rationale:solution.rationale,answer_key:solution.answer_key,...await educationFeedback(solution)},{headers:{'Cache-Control':'no-store'}});
 }

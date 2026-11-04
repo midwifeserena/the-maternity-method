@@ -1,0 +1,1 @@
+export function matrixDefinition(input:unknown):{question:{stem:string;matrix_mode:'single'|'multiple';options:{id:string;label:string}[];matrix_rows:{id:string;label:string}[];published:false};solution:{answer_key:Record<string,string|string[]>;rationale:string;row_explanations:Record<string,string>}};
