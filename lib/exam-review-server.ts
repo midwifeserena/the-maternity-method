@@ -38,6 +38,22 @@ export async function completedReview(db:UserDatabase,userId:string,id:string){
  const responses=await savedResponses(db,userId,[id]);if(responses.error)return {data:null,error:responses.error,status:500};
  const snapshots=await db.from('exam_review_items').select('question_id,position,question_snapshot,solution_snapshot').eq('attempt_id',id).order('position');
  if(snapshots.error&&!missingReviewTable(snapshots.error))return {data:null,error:snapshots.error,status:500};
- return {data:buildExamReview(attempt.data,responses.data,snapshots.data??[]),error:null,status:200};
+ const archived=snapshots.data??[];
+ // A completed, owned response is the only authority for retrieving current
+ // bank material. Never use client-supplied IDs or replace an archived version.
+ const currentQuestions:unknown[]=[],currentSolutions:unknown[]=[];
+ if(!archived.length&&responses.data.length){
+  const ids=[...new Set(responses.data.map(row=>row.question_id))];
+  for(let start=0;start<ids.length;start+=200){
+   const batch=ids.slice(start,start+200),service=admin();
+   const [questions,solutions]=await Promise.all([
+    service.from('questions').select('*').in('id',batch),
+    service.from('question_solutions').select('*').in('question_id',batch)
+   ]);
+   if(questions.error||solutions.error)return {data:null,error:questions.error??solutions.error,status:500};
+   currentQuestions.push(...(questions.data??[]));currentSolutions.push(...(solutions.data??[]));
+  }
+ }
+ return {data:buildExamReview(attempt.data,responses.data,archived,currentQuestions,currentSolutions),error:null,status:200};
 }
 export {summarizeAttempt};

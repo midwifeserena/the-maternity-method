@@ -43,3 +43,19 @@ test('public snapshots never return answer keys; image URLs reject executable sc
 test('submission-time snapshots are labelled honestly',()=>{
  assert.match(buildExamReview({...attempt,snapshot_stage:'submission'},[],[snapshot]).warnings.join(' '),/when it was submitted/);
 });
+
+test('legacy fallback labels current questions and preserves recorded results even when current keys differ',()=>{
+ const rows=[{id:'r',question_id:'q',response:['a'],earned:2,possible:2}];
+ const result=buildExamReview({...attempt,snapshot_stage:null,question_count:null},rows,[],[question],[{question_id:'q',answer_key:['b'],rationale:'Current rationale'}]);
+ assert.equal(result.items[0].contentSource,'current');assert.equal(result.items[0].question.stem,'Original question');assert.equal(result.items[0].rationale,'Current rationale');assert.equal(result.items[0].status,'correct');assert.equal(result.items[0].earned,2);assert.equal(result.attempt.earned,3);assert.equal(result.items[0].position,null);assert.equal(result.attempt.questionCount,null);assert.match(result.warnings.join(' '),/may have changed/);
+});
+test('saved archives always take precedence over current bank content',()=>{
+ const result=buildExamReview(attempt,[{id:'r',question_id:'q',response:['a'],earned:1,possible:2}],[snapshot],[{...question,stem:'CURRENT EDIT'}],[{question_id:'q',answer_key:['b'],rationale:'CURRENT RATIONALE'}]);
+ assert.equal(result.items[0].contentSource,'archived');assert.equal(result.items[0].question.stem,'Original question');assert.equal(result.items[0].rationale,'Original rationale');
+});
+test('changed answer identifiers and types are not silently mapped to new choices',()=>{
+ for(const response of [['removed'],{oldRow:'a'},'a']){
+  const result=buildExamReview(attempt,[{id:'r',question_id:'q',response,earned:1,possible:2}],[],[question],[]);assert.equal(result.items[0].selectionUnavailable,true);assert.deepEqual(result.items[0].response,response);
+ }
+ const missing=buildExamReview(attempt,[{id:'r',question_id:'missing',response:'a',earned:1,possible:1}],[],[question],[]);assert.equal(missing.items[0].question,null);assert.equal(missing.items[0].contentSource,'unavailable');assert.equal(missing.items[0].correctAnswer,null);
+});
