@@ -1,6 +1,8 @@
 import {createServerClient} from '@supabase/ssr';
 import {NextResponse, type NextRequest} from 'next/server';
 export async function proxy(request:NextRequest){
+ // The public launch page never needs a Supabase session refresh.
+ if(request.nextUrl.pathname==='/launch' || request.nextUrl.pathname==='/launch/') return NextResponse.next({request});
  if(!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) return NextResponse.next({request});
  let response=NextResponse.next({request});
  const supabase=createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,{
