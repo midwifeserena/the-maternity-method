@@ -71,3 +71,12 @@ repeat imports and scoped 412-card publication. TypeScript and the repository
 suite pass. Live authenticated Supabase operations remain unverified; no live
 database was changed. Local production builds have an existing Google Fonts
 network restriction, so verify the Vercel deployment after merging.
+
+
+## Student read aloud
+
+The student flashcard study area offers **Read question & answer** and **Stop reading**. Reading is opt-in and uses the browser/operating system text-to-speech voice; it does not create or upload audio files or require a paid service, database migration or additional dependency. Voice availability and pronunciation vary by device/browser.
+
+The full saved question is read first, then the answer. Long explanations are split into short utterances without omitting text. Changing card, topic/search/high-yield filter, shuffle order or leaving the study component cancels owned playback. Manual flipping remains independent of speech. Stale speech events cannot restart or change a new card's reading state. Unsupported browsers retain normal flashcards and show an availability message; synthesis failures show a retryable audio message. Published/approved card loading, editing, authentication and student data are unchanged.
+
+Validated TypeScript, scoped lint, existing regression tests and real-component Chromium desktop/mobile controls with simulated browser speech events: no autoplay, question/answer order, long explanations, stop/cancellation, stale callbacks, completion/error recovery and unsupported-browser behavior. Actual speaker output and installed voices need a spot-check on the target device; headless checks do not verify audible quality.

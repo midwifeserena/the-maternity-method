@@ -1,6 +1,7 @@
 'use client';
 
 import {useEffect,useMemo,useState} from 'react';
+import {FlashcardAudio} from '@/components/flashcard-audio';
 import {createClient} from '@/lib/supabase/client';
 
 type Card={id:string;card_number:number;topic:string;front:string;back:string;high_yield:boolean};
@@ -94,6 +95,7 @@ export default function FlashcardsPage(){
        <span className={'block whitespace-pre-wrap leading-relaxed '+(flipped?'text-base md:text-lg':'text-2xl md:text-3xl font-display')}>{flipped?active.back:active.front}</span>
        <span className="block text-xs text-espresso/55 mt-6">{flipped?'Click to return to the question':'Click to reveal the answer'}</span>
       </button>
+      <FlashcardAudio key={[active.id,topic,search,String(highYield),order.join(',')].join(':')} front={active.front} back={active.back}/>
       <div className="flex flex-wrap justify-between gap-3">
        <button type="button" className="btn-outline disabled:opacity-40" disabled={position===0} onClick={()=>move(position-1)}>← Previous</button>
        <button type="button" className="btn-primary" onClick={()=>setFlipped(value=>!value)}>{flipped?'Show question':'Show answer'}</button>
