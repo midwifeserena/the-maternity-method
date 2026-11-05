@@ -1,0 +1,11 @@
+'use client';
+import type {QuestionDocument} from '@/lib/question-authoring.mjs';
+type Q=QuestionDocument['question'];
+export function NgnConfiguration({question:q,onChange}:{question:Q;onChange:(value:any)=>void}){
+ const config=q.ngn_config??{},bowtie=q.ngn_format==='bowtie',cloze=['cloze','drag-cloze'].includes(q.ngn_format??'');
+ const groups=(bowtie?config.groups:config.blanks)??[];
+ function groupChange(index:number,patch:Record<string,unknown>){onChange({...config,[bowtie?'groups':'blanks']:groups.map((g:any,i:number)=>i===index?{...g,...patch}:g)})}
+ return <div className="studio-stack"><h3>NGN interaction</h3>{cloze?<label className="studio-field"><span>Sentence with answer blanks</span><textarea aria-label="Cloze sentence" rows={4} value={config.template??''} onChange={e=>onChange({...config,template:e.target.value})}/><span className="studio-help">Use {'{1}'} for the first blank, {'{2}'} for the second, and so on. Add answer rows in Answers to add blanks.</span></label>:!bowtie&&<label className="studio-field"><span>Findings heading</span><input aria-label="Findings heading" value={config.heading??''} onChange={e=>onChange({...config,heading:e.target.value})}/></label>}
+ {groups.map((group:any,index:number)=><div key={group.id} className="studio-choice"><h4>{bowtie?group.label:'Blank '+(index+1)}</h4>{bowtie&&<div className="studio-grid"><label className="studio-field"><span>Group heading</span><input value={group.label} onChange={e=>groupChange(index,{label:e.target.value})}/></label><label className="studio-field"><span>Number students select</span><input type="number" min={1} max={group.option_ids.length||1} value={group.select} onChange={e=>groupChange(index,{select:Number(e.target.value)})}/></label></div>}<p className="studio-help">Choose which answers are available {bowtie?'in this group':'for this blank'}. Edit their wording and mark correct answers in Answers.</p><div>{q.options.map(option=><label key={option.id} style={{display:'flex',gap:8,padding:'6px 0'}}><input type="checkbox" checked={group.option_ids.includes(option.id)} onChange={()=>groupChange(index,{option_ids:group.option_ids.includes(option.id)?group.option_ids.filter((id:string)=>id!==option.id):[...group.option_ids,option.id]})}/>{option.label||'Unlabelled answer'}</label>)}</div></div>)}
+ </div>;
+}

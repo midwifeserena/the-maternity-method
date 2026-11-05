@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import {useEffect,useMemo,useState} from 'react';
 type Case={id:string;case_number:number;topic:string;title:string;intro:string;tabs:Record<string,string>;review_status:string;published:boolean};
 type Item={id:string;case_id:string;item_number:number;item_type:string;stem:string;content:Record<string,unknown>;scoring_rule:string;review_status:string;published:boolean};
@@ -8,6 +9,8 @@ const input='w-full rounded-xl bg-white border border-[#DCCBC5] p-3 text-sm text
 export function NgnAdminEditor(){
  const [data,setData]=useState<Data>({cases:[],items:[],answers:[]}),[selected,setSelected]=useState(''),[activeItem,setActiveItem]=useState(''),[search,setSearch]=useState('');
  const [draft,setDraft]=useState<Record<string,unknown>>({}),[status,setStatus]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
+ const [transferResult,setTransferResult]=useState('');
+ const [caseFilter,setCaseFilter]=useState('all');
  const [mode,setMode]=useState<'case'|'item'>('case');
  async function load(keep=true){const r=await fetch('/api/admin/ngn',{cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'Could not load cases');setData(j);const id=keep&&selected&&j.cases.some((c:Case)=>c.id===selected)?selected:j.cases[0]?.id??'';setSelected(id);return j as Data}
  useEffect(()=>{load(false).catch(e=>setStatus(e.message)).finally(()=>setLoading(false))},[]);
@@ -18,7 +21,7 @@ export function NgnAdminEditor(){
  const [tabDraft,setTabDraft]=useState<Record<string,string>>({});
  useEffect(()=>{setDraft({});setTabDraft(current?.tabs??{});setActiveItem('');setMode('case');setStatus('')},[selected]);
  useEffect(()=>{setDraft({});setStatus('')},[activeItem,mode]);
- const list=data.cases.filter(c=>(c.title+' '+c.topic+' '+c.case_number).toLowerCase().includes(search.toLowerCase()));
+ const list=data.cases.filter(c=>{const count=data.items.filter(i=>i.case_id===c.id).length;return (caseFilter==='all'||(caseFilter==='six'?count===6:count>0&&count!==6))&&(c.title+' '+c.topic+' '+c.case_number).toLowerCase().includes(search.toLowerCase())});
  const change=(key:string,value:unknown)=>setDraft(d=>({...d,[key]:value}));
  async function patch(kind:'case'|'item'|'answer',id:string,fields:Record<string,unknown>){
   const r=await fetch('/api/admin/ngn',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,id,fields})});const j=await r.json();if(!r.ok)throw Error(j.error||'Save failed');return j;
@@ -40,10 +43,10 @@ export function NgnAdminEditor(){
  return <div className="grid gap-5 lg:grid-cols-[290px_1fr] items-start text-[#4E3629]">
   <aside className="rounded-2xl bg-[#FFF9F2] border border-[#E6D4CA] p-4 lg:sticky lg:top-6">
    <div className="flex justify-between items-center mb-4"><h2 className="font-display text-2xl">Case library</h2><span className="text-xs text-[#8E4A55]">{data.cases.length} cases</span></div>
-   <input className={input} placeholder="Find a case…" aria-label="Find a case" value={search} onChange={e=>setSearch(e.target.value)}/>
-   <div className="mt-4 space-y-2 max-h-[65vh] overflow-auto">{list.map(c=><button type="button" key={c.id} onClick={()=>setSelected(c.id)} className={'w-full text-left p-3 rounded-xl border '+(selected===c.id?'border-[#8E4A55] bg-[#E6D4CA]':'border-[#E6D4CA] bg-white hover:bg-[#F2E7DA]')}><p className="text-[11px] uppercase tracking-wider text-[#8E4A55]">{c.topic} · Case {c.case_number}</p><p className="font-semibold mt-1 text-sm">{c.title}</p><div className="mt-2">{badge(c.review_status,c.published)}</div></button>)}</div>
+   <label className="block text-sm font-semibold mb-3">Show content<select aria-label="NGN content filter" className={input+' mt-2'} value={caseFilter} onChange={e=>setCaseFilter(e.target.value)}><option value="all">All content</option><option value="six">Six-question case studies</option><option value="standalone">Standalone NGN questions</option></select></label><input className={input} placeholder="Find a case…" aria-label="Find a case" value={search} onChange={e=>setSearch(e.target.value)}/>
+   <div className="mt-4 space-y-2 max-h-[65vh] overflow-auto">{list.map(c=><button type="button" key={c.id} onClick={()=>setSelected(c.id)} className={'w-full text-left p-3 rounded-xl border '+(selected===c.id?'border-[#8E4A55] bg-[#E6D4CA]':'border-[#E6D4CA] bg-white hover:bg-[#F2E7DA]')}><p className="text-[11px] uppercase tracking-wider text-[#8E4A55]">{c.topic} · Case {c.case_number}</p><p className="font-semibold mt-1 text-sm">{c.title}</p><p className="text-xs mt-2">{data.items.filter(i=>i.case_id===c.id).length} questions</p><div className="mt-2">{badge(c.review_status,c.published)}</div></button>)}</div>
   </aside>
-  <main className="space-y-4 min-w-0">
+  <main className="space-y-4 min-w-0">{transferResult&&<div role="status" className="rounded-xl border border-[#B38585] bg-[#F2E7DA] p-4">{transferResult} <Link className="underline font-semibold" href="/admin/questions">Open Question Bank Studio →</Link></div>}
    {!current?<div className="rounded-2xl p-8 bg-[#FFF9F2]">No cases found. Check your Supabase import and admin access.</div>:<>
     <div className="rounded-2xl border border-[#E6D4CA] bg-[#FFF9F2] p-5 md:p-7">
      <div className="flex flex-wrap justify-between items-start gap-3"><div><p className="text-xs uppercase tracking-[.2em] text-[#8E4A55]">Case {current.case_number} · {current.topic}</p><h2 className="font-display text-3xl mt-2">{current.title}</h2></div>{badge(current.review_status,current.published)}</div>
@@ -71,7 +74,7 @@ export function NgnAdminEditor(){
       </div><button disabled={busy} onClick={saveItem} className="px-5 py-3 bg-[#8E4A55] text-white rounded-xl font-semibold disabled:opacity-50">Save question and answer</button></>:<p>No questions imported for this case.</p>}
     </section>}
     <section className="rounded-2xl border border-[#E6D4CA] bg-white p-5 md:p-7">
-     <h3 className="font-display text-xl mb-2">Review & publishing</h3><p className="text-sm text-[#4E3629]/65 mb-4">Save edits first. Approval and publication are separate steps; students see only published cases and items.</p>
+     {items.length>0&&items.length!==6&&<div className="mb-6 rounded-xl border border-[#B38585] bg-[#F2E7DA] p-4"><h3 className="font-semibold">Standalone NGN questions → Question Bank</h3><p className="text-sm my-3">Move all {items.length} questions in this group, including the patient chart and rationales, into NGN Questions in the regular Qbank. They will remain unpublished drafts. Six-question case studies stay here.</p><button disabled={busy||current.published||items.some(i=>i.published||i.review_status!=='approved')||Object.keys(draft).length>0||JSON.stringify(tabDraft)!==JSON.stringify(current.tabs)} className="bg-[#8E4A55] text-white rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-40" onClick={()=>{if(!window.confirm(`Move these ${items.length} standalone questions to the Qbank as unpublished drafts? The source records will be preserved, and this group will leave the case-study admin list.`))return;void act(async()=>{const r=await fetch('/api/admin/ngn/transfer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseId:current.id})});const j=await r.json();if(!r.ok)throw Error(j.error||'Transfer failed');setTransferResult(`${j.ids.length} questions moved to the Question Bank as unpublished drafts. You can review and publish them there.`)},'Questions moved to Question Bank → NGN Questions. Review and publish them there.')}}>Move to Question Bank</button><p className="text-xs mt-3">Every question must be approved and unpublished, and the case must be unpublished. Save any edits first. <Link className="underline" href="/admin/questions">Open Question Bank Studio →</Link></p></div>}<h3 className="font-display text-xl mb-2">Review & publishing</h3><p className="text-sm text-[#4E3629]/65 mb-4">Save edits first. Approval and publication are separate steps; students see only published cases and items.</p>
      <div className="flex gap-2 flex-wrap">
       <button disabled={busy||(mode==='item'&&!item)} className="border border-[#8E4A55] text-[#8E4A55] rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-40" onClick={()=>act(async()=>{if(mode==='case')await patch('case',current.id,{review_status:'approved'});else if(item)await patch('item',item.id,{review_status:'approved'})},'Approval saved')}>Approve {mode==='case'?'case':'question'}</button>
       <button disabled={busy||(mode==='item'&&!item)} className="bg-[#8E4A55] text-white rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-40" onClick={()=>act(async()=>{if(mode==='case')await patch('case',current.id,{published:true});else if(item)await patch('item',item.id,{published:true})},'Publication updated')}>Publish {mode==='case'?'case':'question'}</button>
