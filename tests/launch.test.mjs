@@ -15,12 +15,12 @@ test('launch video accepts supported HTTPS sources and preserves Vimeo privacy h
 
 test('only the public launch route bypasses the existing Supabase session refresh',async()=>{
  let clients=0,claims=0;
- const module={exports:{}};
+ const compiled={exports:{}};
  const code=ts.transpileModule(readFileSync(new URL('../proxy.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- vm.runInNewContext(code,{module,exports:module.exports,process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://example.test',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'test-key'}},require(name){if(name==='@supabase/ssr')return{createServerClient(){clients++;return{auth:{async getClaims(){claims++}}}}};if(name==='next/server')return{NextResponse:{next(){return{kind:'next'}}}};throw Error(`Unexpected module: ${name}`)}});
+ vm.runInNewContext(code,{module:compiled,exports:compiled.exports,process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://example.test',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'test-key'}},require(name){if(name==='@supabase/ssr')return{createServerClient(){clients++;return{auth:{async getClaims(){claims++}}}}};if(name==='next/server')return{NextResponse:{next(){return{kind:'next'}}}};throw Error(`Unexpected module: ${name}`)}});
  const request=pathname=>({nextUrl:{pathname},cookies:{getAll:()=>[]}});
- for(const path of ['/launch','/launch/'])await module.exports.proxy(request(path));
+ for(const path of ['/launch','/launch/'])await compiled.exports.proxy(request(path));
  assert.equal(clients,0);assert.equal(claims,0);
- for(const path of ['/','/dashboard','/admin/questions','/launch/private'])await module.exports.proxy(request(path));
+ for(const path of ['/','/dashboard','/admin/questions','/launch/private'])await compiled.exports.proxy(request(path));
  assert.equal(clients,4);assert.equal(claims,4);
 });
