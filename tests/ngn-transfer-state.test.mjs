@@ -1,0 +1,9 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {ngnTransferState,sameNgnValue} from '../lib/ngn-transfer-state.mjs';
+const current={published:false,tabs:{Notes:'Assessment',Vitals:'Stable'},title:'Standalone'},item={item_number:1,review_status:'approved',published:false,stem:'Question',content:{options:['A','B']}};
+const input={current,items:[item],item,mode:'case',tabDraft:{Vitals:'Stable',Notes:'Assessment'}};
+test('semantically equal chart values stay eligible after jsonb key reordering',()=>{assert(ngnTransferState(input).canTransfer);assert(sameNgnValue({a:[1,{b:2,c:3}]},{a:[1,{c:3,b:2}]}));assert(!sameNgnValue(['a','b'],['b','a']))});
+test('touched then reverted fields and reformatted saved JSON are not unsaved changes',()=>{assert(ngnTransferState({...input,draft:{title:'Standalone'}}).canTransfer);assert(ngnTransferState({...input,mode:'item',draft:{content:'{ "options": ["A", "B"] }'}}).canTransfer)});
+test('real chart or answer edits prevent transferring a stale saved version',()=>{assert(ngnTransferState({...input,tabDraft:{...current.tabs,Notes:'Changed'}}).hasUnsavedChanges);assert(ngnTransferState({...input,mode:'item',draft:{stem:'Changed'}}).hasUnsavedChanges);assert(ngnTransferState({...input,mode:'item',draft:{content:'invalid JSON'}}).hasUnsavedChanges)});
+test('individual item publication and approval blockers are explicit, independent of the case badge',()=>{const result=ngnTransferState({...input,items:[{...item,published:true,review_status:'needs_review'}]});assert(!result.canTransfer);assert(result.reasons.some(s=>s.includes('Question 1 is published')));assert(result.reasons.some(s=>s.includes('Question 1 is not approved')))});
+test('published parents and six-question cases remain blocked',()=>{assert(!ngnTransferState({...input,current:{...current,published:true}}).canTransfer);assert(!ngnTransferState({...input,items:Array(6).fill(item)}).canTransfer)});
