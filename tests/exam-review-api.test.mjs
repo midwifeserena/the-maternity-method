@@ -233,3 +233,17 @@ test('all new NGN formats submit original selections and points through existing
  const result=await h.load('app/api/exams/submit/route.ts').POST(post('',{...payload,mode,answers:{[qid]:key}}));assert.equal(result.status,200);assert.equal((await result.json()).earned,expected.earned);assert.deepEqual(h.writes[0].p_responses[0].response,key);assert.equal(h.writes[0].p_responses[0].possible,expected.possible);
  }
 });
+
+test('canonical six-case player uses private numeric/ordered/paired keys only after submission',async()=>{
+ for(const format of ['calculation','ordered','dyad-cloze']){const d=standalone.ngnTemplate(format),itemId=sourceItem.id;d.question.id=itemId;const cases=[{...sourceCase,published:true}],items=[{...sourceItem,published:true,content:{format_version:2,question:{...d.question,answer_key:'PRIVATE_FAKE',ngn_config:{...d.question.ngn_config,answer_key:'PRIVATE_FAKE'}}}}],answers=[{...sourceAnswer,answer:{answer_key:d.solution.answer_key,nursing_tip:'Private tip'},rationale:'Private case rationale'}];
+ const h=harness({ngnCases:cases,ngnItems:items,ngnAnswers:answers});const visible=await h.load('app/api/ngn/route.ts').GET({nextUrl:new URL('https://example.test?formats=extended-v1')}),data=await visible.json();assert.equal(visible.status,200);assert(!JSON.stringify(data).includes('PRIVATE'));assert(!h.calls.some(c=>c.table==='ngn_answers'));assert.equal(data.items[0].content.question.ngn_format,format);
+ items[0].content.question=d.question;
+ const result=await h.load('app/api/ngn/route.ts').POST(post('',{caseId:qid,responses:{[itemId]:{response:d.solution.answer_key}}})),feedback=await result.json();assert.equal(result.status,200);assert.equal(feedback.earned,feedback.possible);assert.equal(feedback.results[0].rationale,'Private case rationale');assert.deepEqual(feedback.results[0].answer.answer_key,d.solution.answer_key);
+ }
+ const anonymous=harness({user:null});assert.equal((await anonymous.load('app/api/ngn/route.ts').GET()).status,401);assert.equal((await anonymous.load('app/api/ngn/route.ts').POST(post('',{}))).status,401);assert.equal(anonymous.calls.length,0);
+});
+
+test('older question clients are not offered new formats until requesting extended capability',async()=>{
+ const d=standalone.ngnTemplate('calculation');const h=harness({liveQuestions:[{...original,published:true},{...d.question,id:'numeric',published:true}]});const get=url=>h.load('app/api/questions/route.ts').GET({nextUrl:new URL(url)});assert.equal((await (await get('https://example.test?category=All')).json()).questions.length,1);assert.equal((await (await get('https://example.test?category=All&formats=extended-v1')).json()).questions.length,2);
+ const c=harness({ngnCases:[{...sourceCase,published:true}],ngnItems:[{...sourceItem,published:true,content:{question:d.question}}]});assert.equal((await (await c.load('app/api/ngn/route.ts').GET()).json()).cases.length,0);
+});

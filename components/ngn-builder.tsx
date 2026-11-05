@@ -1,4 +1,6 @@
 'use client';
+import {QuestionResponse} from './question-response';
+import {NursingTip} from './nursing-tip';
 import {useEffect,useMemo,useState} from 'react';
 
 type Case={id:string;case_number:number;topic:string;title:string;intro:string;tabs:Record<string,string>};
@@ -6,8 +8,9 @@ type Item={id:string;case_id:string;item_number:number;item_type:string;stem:str
 type Result={itemId:string;earned:number;possible:number;answer:Record<string,unknown>;answerText:string;rationale:string};
 type Response=Record<string,unknown>;
 const letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-function ItemControl({item,value,onChange,disabled}:{item:Item;value:Response;onChange:(next:Response)=>void;disabled:boolean}){
+function ItemControl({item,value,onChange,disabled,solution}:{solution?:unknown;item:Item;value:Response;onChange:(next:Response)=>void;disabled:boolean}){
  const c=item.content;
+ if(c.question)return <QuestionResponse question={c.question} answer={value.response} solution={solution} disabled={disabled} onChange={response=>onChange({response})}/>;
  const toggle=(key:string,v:string|number,max?:number)=>{const original=Array.isArray(value[key])?value[key] as (string|number)[]:[];const next=original.includes(v)?original.filter(x=>x!==v):max&&original.length>=max?[...original.slice(1),v]:[...original,v];onChange({...value,[key]:next})};
  const choices=(c.options as string[]|undefined);
  if(choices){
@@ -43,13 +46,13 @@ export function NgnBuilder(){
  const [active,setActive]=useState<Case|null>(null),[index,setIndex]=useState(0),[tab,setTab]=useState('');
  const [responses,setResponses]=useState<Record<string,Response>>({}),[results,setResults]=useState<Result[]|null>(null),[score,setScore]=useState('');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
- useEffect(()=>{fetch('/api/ngn',{cache:'no-store'}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);setCases(data.cases);setItems(data.items)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[]);
+ useEffect(()=>{fetch('/api/ngn?formats=extended-v1',{cache:'no-store'}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);setCases(data.cases);setItems(data.items)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[]);
  const filtered=useMemo(()=>cases.filter(c=>category==='All'||c.topic===category),[cases,category]);
  const current=useMemo(()=>active?items.filter(i=>i.case_id===active.id).sort((a,b)=>a.item_number-b.item_number):[],[active,items]);
  const item=current[index];
  function start(c:Case){setActive(c);setSelected([c.id]);setIndex(0);setTab(Object.keys(c.tabs)[0]??'');setResponses({});setResults(null);setScore('');setError('')}
  function back(){setActive(null);setResults(null);setError('')}
- async function submit(){if(!active)return;setBusy(true);setError('');try{const r=await fetch('/api/ngn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseId:active.id,responses})});const data=await r.json();if(!r.ok)throw Error(data.error);setResults(data.results);setScore(data.earned+'/'+data.possible);setIndex(0)}catch(e){setError(e instanceof Error?e.message:'Submission failed')}finally{setBusy(false)}}
+ async function submit(){if(!active)return;setBusy(true);setError('');try{const r=await fetch('/api/ngn?formats=extended-v1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseId:active.id,responses})});const data=await r.json();if(!r.ok)throw Error(data.error);setResults(data.results);setScore(data.earned+'/'+data.possible);setIndex(0)}catch(e){setError(e instanceof Error?e.message:'Submission failed')}finally{setBusy(false)}}
  const shell='rounded-2xl border border-rose/30 bg-[#FFF9F2] p-5 md:p-7';
  if(loading)return <div className={shell}>Loading your NGN case studies…</div>;
  if(!active)return <div className="space-y-5 max-w-6xl">
@@ -60,13 +63,15 @@ export function NgnBuilder(){
  </div>;
  if(!item)return <div className={shell}><button onClick={back} className="btn-outline">← Case library</button><p className="mt-5">This case has no published items.</p></div>;
  const result=results?.find(r=>r.itemId===item.id);
+ const chart=(item.content.question as any)?.chart??active.tabs;
+ const currentTab=Object.hasOwn(chart,tab)?tab:Object.keys(chart)[0]??'';
  return <div className="space-y-4 max-w-7xl">
   <div className="flex flex-wrap gap-3 justify-between items-center"><button onClick={back} className="btn-outline">← Case library</button><div className="text-sm font-semibold text-mauve">{active.topic} · Case {active.case_number} · Question {index+1} of {current.length}</div>{results&&<span className="pill">Score: {score}</span>}</div>
   <div className="h-2 bg-oatmeal rounded-full overflow-hidden"><div style={{width:((index+1)/current.length*100)+'%'}} className="h-full bg-mauve"/></div>
   <div className="grid lg:grid-cols-[minmax(280px,42%)_1fr] gap-4 items-start">
-   <aside className={shell}><div className="flex items-center justify-between"><h2 className="text-2xl">Patient Chart</h2><span className="pill">{active.topic}</span></div><p className="mt-3 text-sm">{active.intro}</p><div role="tablist" className="flex flex-wrap gap-2 mt-6">{Object.keys(active.tabs).map(t=><button role="tab" aria-selected={tab===t} onClick={()=>setTab(t)} key={t} className={'rounded-lg px-3 py-2 text-xs font-semibold '+(tab===t?'bg-mauve text-white':'bg-oatmeal text-mauve')}>{t}</button>)}</div><div role="tabpanel" className="mt-4 whitespace-pre-wrap leading-relaxed text-sm bg-white rounded-xl border border-rose/20 p-4 min-h-40">{active.tabs[tab]}</div></aside>
-   <section className={shell}><div className="flex flex-wrap gap-2 justify-between mb-5"><span className="pill">{item.item_type}</span><span className="text-xs text-espresso/60">Scoring: {item.scoring_rule}</span></div><h2 className="text-xl md:text-2xl mb-6">{item.stem}</h2><ItemControl item={item} value={responses[item.id]??{}} disabled={!!results} onChange={v=>setResponses(s=>({...s,[item.id]:v}))}/>
-    {result&&<div className="mt-6 rounded-xl bg-oatmeal p-5"><h3 className="font-bold">Review · {result.earned}/{result.possible} points</h3><p className="text-sm mt-3 whitespace-pre-wrap"><strong>Correct response: </strong>{result.answerText}</p><p className="text-sm mt-4 whitespace-pre-wrap"><strong>Rationale: </strong>{result.rationale}</p></div>}
+   <aside className={shell}><div className="flex items-center justify-between"><h2 className="text-2xl">Patient Chart</h2><span className="pill">{active.topic}</span></div><p className="mt-3 text-sm">{active.intro}</p><div role="tablist" className="flex flex-wrap gap-2 mt-6">{Object.keys(chart).map(t=><button role="tab" aria-selected={currentTab===t} onClick={()=>setTab(t)} key={t} className={'rounded-lg px-3 py-2 text-xs font-semibold '+(currentTab===t?'bg-mauve text-white':'bg-oatmeal text-mauve')}>{t}</button>)}</div><div role="tabpanel" className="mt-4 whitespace-pre-wrap leading-relaxed text-sm bg-white rounded-xl border border-rose/20 p-4 min-h-40">{chart[currentTab]}</div></aside>
+   <section className={shell}><div className="flex flex-wrap gap-2 justify-between mb-5"><span className="pill">{({MCQ:'Multiple choice',SATA:'Select all that apply',ORDER:'Ordered response',MATRIX:'Matrix question',HIGHLIGHT:'Highlight findings',DROPDOWN_CLOZE:'Drop-down cloze',DROPDOWN_RATIONALE:'Paired rationale cloze',DRAGDROP_CLOZE:'Drag-and-drop cloze',BOWTIE:'Bowtie'} as Record<string,string>)[item.item_type]??item.item_type}</span><span className="text-xs text-espresso/60">Scoring: {item.scoring_rule==='dyad'?'1 point when both blanks are correct':item.scoring_rule}</span></div><h2 className="text-xl md:text-2xl mb-6">{item.stem}</h2><ItemControl solution={result?.answer?.answer_key} item={item} value={responses[item.id]??{}} disabled={!!results} onChange={v=>setResponses(s=>({...s,[item.id]:v}))}/>
+    {result&&<div className="mt-6 rounded-xl bg-oatmeal p-5"><h3 className="font-bold">Review · {result.earned}/{result.possible} points</h3><p className="text-sm mt-3 whitespace-pre-wrap"><strong>Correct response: </strong>{result.answerText}</p><p className="text-sm mt-4 whitespace-pre-wrap"><strong>Rationale: </strong>{result.rationale}</p><NursingTip text={typeof result.answer.nursing_tip==='string'?result.answer.nursing_tip:null}/></div>}
     {error&&<p className="mt-4 text-sm text-red-700" role="alert">{error}</p>}
     <div className="mt-7 flex flex-wrap justify-between gap-3"><button className="btn-outline disabled:opacity-40" disabled={index===0} onClick={()=>setIndex(i=>i-1)}>← Previous</button><div className="flex gap-2">{index<current.length-1?<button className="btn-primary" onClick={()=>setIndex(i=>i+1)}>Next →</button>:!results?<button className="btn-primary disabled:opacity-40" disabled={busy||current.some(i=>!responses[i.id])} onClick={submit}>{busy?'Checking…':'Submit case for review →'}</button>:<button className="btn-primary" onClick={back}>Finish case →</button>}</div></div>
    </section>

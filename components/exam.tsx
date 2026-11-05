@@ -60,7 +60,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
    try{
     let ids=selectedIds;
     if(!ids){
-     const bank=await fetch('/api/questions?category='+encodeURIComponent(category),{cache:'no-store',signal:controller.signal});
+     const bank=await fetch('/api/questions?formats=extended-v1&category='+encodeURIComponent(category),{cache:'no-store',signal:controller.signal});
      const data=await bank.json();if(!bank.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not load questions.');
      ids=(data.questions as Question[]).slice(0,50).map(item=>item.id);
     }
@@ -139,7 +139,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
      {chartTabs.length>0&&<aside className="exam-chart" aria-label="Patient chart"><h2>Patient chart</h2><div className="exam-chart-tabs" role="tablist" aria-label="Clinical chart sections">{chartTabs.map((title,n)=><button type="button" role="tab" id={'exam-chart-tab-'+n} aria-selected={currentTab===title} aria-controls="exam-chart-panel" key={title} onClick={()=>setTab(title)}>{title}</button>)}</div><div id="exam-chart-panel" role="tabpanel" aria-labelledby={'exam-chart-tab-'+chartTabs.indexOf(currentTab)} className="exam-chart-content">{chart[currentTab]}</div></aside>}
      <article className="exam-question">
       {!reviewAvailable&&<p className="exam-question-kind">Detailed question snapshots are not enabled for this session.</p>}
-      <p className="exam-question-kind">{question.category} · {question.ngn_format?({'bowtie':'Bowtie','highlight':'Highlight findings','cloze':'Drop-down cloze','drag-cloze':'Drag-and-drop cloze','drag-select':'Drag-and-drop selection'} as Record<string,string>)[question.ngn_format]:question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
+      <p className="exam-question-kind">{question.category} · {question.ngn_format?({'calculation':'Calculation','ordered':'Ordered response','dyad-cloze':'Paired rationale cloze','bowtie':'Bowtie','highlight':'Highlight findings','cloze':'Drop-down cloze','drag-cloze':'Drag-and-drop cloze','drag-select':'Drag-and-drop selection'} as Record<string,string>)[question.ngn_format]:question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
       <>{question.clinical_scenario&&<p className="exam-clinical-scenario"><FormattedText text={question.clinical_scenario} format={question.content_format}/></p>}</><h1 ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}><FormattedText text={question.stem} format={question.content_format}/></h1>
       <ExamImages images={question.images} label="Question image"/>
       {question.ngn_format?<NgnQuestion question={question} answer={answer} solution={review?.answer_key} disabled={Boolean(review)||checking} onChange={choose}/>:question.type==='matrix'?<QuestionMatrix question={question} answer={answer} solution={review?.answer_key} rowExplanations={review?.row_explanations} disabled={Boolean(review)||checking} onChange={choose}/>

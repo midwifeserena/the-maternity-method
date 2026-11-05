@@ -26,7 +26,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
  const [started,setStarted]=useState<string[]|null>(null);
  useEffect(()=>{let ignore=false;(async()=>{
    try{
-    const response=await fetch('/api/questions?category=All',{cache:'no-store'});
+    const response=await fetch('/api/questions?formats=extended-v1&category=All',{cache:'no-store'});
     if(!response.ok)throw new Error('Could not load published questions');
     const body=await response.json() as {questions:Question[]};
     const db=createClient();
