@@ -1,7 +1,9 @@
 'use client';
 import './ngn-question.css';
+import {ExtendedResponse} from './extended-response';
 type Props={question:any;answer:unknown;solution?:unknown;disabled?:boolean;onChange?:(answer:any)=>void};
 export function NgnQuestion({question:q,answer,solution,disabled=false,onChange}:Props){
+ if(['calculation','ordered'].includes(q.ngn_format))return <ExtendedResponse question={q} answer={answer} solution={solution} disabled={disabled} onChange={onChange}/>;
  const c=q.ngn_config??{},options=q.options??[],revealed=solution!==undefined&&solution!==null,locked=disabled||revealed;
  const list=(v:unknown):string[]=>Array.isArray(v)?v:[];
  const option=(id:string)=>options.find((o:any)=>o.id===id)?.label??id;
@@ -19,7 +21,7 @@ export function NgnQuestion({question:q,answer,solution,disabled=false,onChange}
  const blanks=c.blanks??[],template=typeof c.template==='string'?c.template:'',drag=q.ngn_format==='drag-cloze';
  const change=(id:string,value:string)=>{if(!locked)onChange?.({...((answer&&typeof answer==='object'?answer:{}) as object),[id]:value})};
  const bank=[...new Set<string>(options.map((o:any)=>o.label))];
- return <section className="ngn-interaction ngn-cloze" aria-label={drag?'Drag and drop cloze':'Drop-down cloze'}><p>{drag?'Drag a word to a blank, or use its menu with a keyboard or touch screen.':'Choose an answer for each blank.'}</p>{drag&&<div className="ngn-word-bank" aria-label="Word choices">{bank.map(label=><span key={label} draggable={!locked} onDragStart={e=>e.dataTransfer.setData('text/plain',label)}>{label}</span>)}</div>}<div className="ngn-cloze-sentence">{template.split(/(\{\d+\})/).map((part:string,index:number)=>{
+ return <section className="ngn-interaction ngn-cloze" aria-label={drag?'Drag and drop cloze':'Drop-down cloze'}>{q.ngn_format==='dyad-cloze'&&<p>These two blanks form a linked pair. Both must be correct to earn the point.</p>}<p>{drag?'Drag a word to a blank, or use its menu with a keyboard or touch screen.':'Choose an answer for each blank.'}</p>{drag&&<div className="ngn-word-bank" aria-label="Word choices">{bank.map(label=><span key={label} draggable={!locked} onDragStart={e=>e.dataTransfer.setData('text/plain',label)}>{label}</span>)}</div>}<div className="ngn-cloze-sentence">{template.split(/(\{\d+\})/).map((part:string,index:number)=>{
   const match=part.match(/^\{(\d+)\}$/);if(!match)return <span key={index}>{part}</span>;
   const n=Number(match[1]),blank=blanks[n-1];if(!blank)return <span key={index}>[Blank unavailable]</span>;
   const value=typeof (answer as any)?.[blank.id]==='string'?(answer as any)[blank.id]:'',correct=(solution as any)?.[blank.id];

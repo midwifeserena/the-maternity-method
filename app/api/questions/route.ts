@@ -19,5 +19,5 @@ export async function GET(request:NextRequest){
   if(page.error)return NextResponse.json({error:'Could not load questions'},{status:500});
   data.push(...(page.data??[]));if((page.data?.length??0)<500)break;
  }
- return NextResponse.json({questions:(await resolveMediaRecords(data)).map(publicSnapshot).filter(Boolean)},{headers:{'Cache-Control':'no-store'}});
+ return NextResponse.json({questions:(await resolveMediaRecords(request.nextUrl.searchParams.get('formats')==='extended-v1'?data:data.filter(q=>!['calculation','ordered','dyad-cloze'].includes(String(q.ngn_format))))).map(publicSnapshot).filter(Boolean)},{headers:{'Cache-Control':'no-store'}});
 }
