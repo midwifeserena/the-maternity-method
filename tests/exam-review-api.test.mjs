@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
+import * as standalone from '../lib/ngn-standalone.mjs';
 import * as review from '../lib/exam-review.mjs';
 import * as scoring from '../lib/scoring.mjs';
 import * as education from '../lib/question-education.mjs';
@@ -11,10 +12,11 @@ import * as matrixAuthoring from '../lib/matrix-authoring.mjs';
 const owner='10000000-0000-0000-0000-000000000001',other='10000000-0000-0000-0000-000000000002',id='30000000-0000-0000-0000-000000000001',qid='20000000-0000-0000-0000-000000000001';
 const original={id:qid,type:'single',category:'Antepartum',stem:'Original archived question',options:[{id:'a',label:'Original A'},{id:'b',label:'B'}],matrix_rows:[]};
 const attempt={id,user_id:owner,mode:'study',earned:0,possible:0,question_count:1,snapshot_stage:'start',completed_at:null};
-function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false,administrator=false,libraryError=null,legacyColumns=null,adminUnavailable=false}={}){
+function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false,administrator=false,libraryError=null,legacyColumns=null,adminUnavailable=false,ngnCases=[],ngnItems=[],ngnAnswers=[],transferError=null}={}){
  const calls=[],writes=[];
  function client(privileged=false){return {storage:{from(){return {createSignedUrls:async paths=>({data:paths.map(path=>({path,signedUrl:'https://example.test/signed/'+path})),error:null}),createSignedUrl:async path=>({data:{signedUrl:'https://example.test/signed/'+path},error:null}),upload:async(path,bytes,options)=>{writes.push({upload:path,size:bytes.length,options});return {data:{path},error:null}}}}},auth:{getUser:async()=>({data:{user:user?{id:user}:null}})},rpc:async(name,args)=>{
   calls.push({rpc:name,privileged,args});
+  if(name==='transfer_standalone_ngn'){assert(privileged);if(transferError)return {data:null,error:transferError};writes.push(args);return {data:{ids:args.p_questions.map(d=>d.question.id)},error:null}}
   if(name==='manage_question_studio'){assert(privileged);writes.push(args);return {data:{id:args.p_id,revision:args.p_expected_revision+1,published:args.p_action==='publish',archived_at:args.p_action==='archive'?'2026-11-04':null},error:null}}
   if(name==='admin_question_library'&&libraryError)return {data:null,error:libraryError};
   if(name==='admin_question_library')return {data:{questions:[],total:0,counts:{all:0,draft:0,published:0,archived:0},offset:args.p_offset,limit:25},error:null};
@@ -25,7 +27,7 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
   assert(privileged);assert.equal(name,'complete_exam_review_attempt');writes.push(args);const row=attempts.find(a=>a.id===args.p_attempt_id);row.completed_at='2026-11-04';row.earned=args.p_responses.reduce((n,r)=>n+r.earned,0);row.possible=args.p_responses.reduce((n,r)=>n+r.possible,0);return {data:{attemptId:id,earned:row.earned,possible:row.possible},error:null};
  },from(table){const call={table,privileged};calls.push(call);let filters=[],start=0,end=Infinity,single=false,columns='*',selectOptions={};
   const chain={select(value,options={}){columns=value;selectOptions=options;call.columns=value;return chain},eq(key,value){filters.push(r=>r[key]===value);return chain},in(key,value){filters.push(r=>value.includes(r[key]));return chain},not(key,_op,value){filters.push(r=>r[key]!==value);return chain},order(){return chain},limit(){return chain},ilike(){return chain},range(a,b){start=a;end=b;return chain},maybeSingle(){single=true;return chain},single(){single=true;return chain},
-   then(resolve,reject){if(table==='questions'&&legacyColumns&&columns!=='*'&&columns.split(',').some(column=>!legacyColumns.includes(column)))return Promise.resolve({data:null,error:{code:'42703'}}).then(resolve,reject);if(table===failTable)return Promise.resolve({data:null,error:{code:'XX000'}}).then(resolve,reject);if(table==='exam_review_items'&&missingSnapshots)return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject);let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_review_items'?snapshots:table==='questions'?liveQuestions:table==='question_solutions'?liveSolutions:[];rows=rows.filter(row=>filters.every(match=>match(row)));const count=rows.length;rows=rows.slice(start,end+1);if(columns!=='*')rows=rows.map(row=>Object.fromEntries(columns.split(',').map(column=>[column,row[column]])));return Promise.resolve({data:selectOptions.head?null:single?rows[0]??null:rows,error:null,count:selectOptions.count?count:null}).then(resolve,reject)}
+   then(resolve,reject){if(table==='questions'&&legacyColumns&&columns!=='*'&&columns.split(',').some(column=>!legacyColumns.includes(column)))return Promise.resolve({data:null,error:{code:'42703'}}).then(resolve,reject);if(table===failTable)return Promise.resolve({data:null,error:{code:'XX000'}}).then(resolve,reject);if(table==='exam_review_items'&&missingSnapshots)return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject);let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_review_items'?snapshots:table==='questions'?liveQuestions:table==='question_solutions'?liveSolutions:table==='ngn_cases'?ngnCases:table==='ngn_items'?ngnItems:table==='ngn_answers'?ngnAnswers:[];rows=rows.filter(row=>filters.every(match=>match(row)));const count=rows.length;rows=rows.slice(start,end+1);if(columns!=='*')rows=rows.map(row=>Object.fromEntries(columns.split(',').map(column=>[column,row[column]])));return Promise.resolve({data:selectOptions.head?null:single?rows[0]??null:rows,error:null,count:selectOptions.count?count:null}).then(resolve,reject)}
   };return chain;
  }}}
  const db=client(),service=client(true),cache=new Map();
@@ -34,6 +36,7 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
    if(name==='@/lib/supabase/server')return {createClient:async()=>db};
    if(name==='@/lib/supabase/admin')return {admin:()=>{if(adminUnavailable)throw Error('Missing server credentials');return service}};
    if(name==='@/lib/exam-review.mjs')return review;
+   if(name==='@/lib/ngn-standalone.mjs'||name==='./ngn-standalone.mjs')return standalone;
    if(name==='@/lib/scoring.mjs')return scoring;
    if(name==='@/lib/ngn-admin-auth')return {requireNgnAdmin:async()=>administrator&&user?{id:user}:null};
    if(name==='@/lib/matrix.mjs')return matrix;
@@ -201,4 +204,32 @@ test('real database errors return unavailable rather than a fabricated empty que
 
 test('an unconfigured admin server connection returns a clear setup error without claiming the bank is empty',async()=>{
  const h=harness({administrator:true,adminUnavailable:true});const response=await h.load('app/api/admin/questions/library/route.ts').GET({nextUrl:new URL('https://example.test')});assert.equal(response.status,503);const data=await response.json();assert.match(data.error,/server connection/);assert(!('total' in data));assert.equal(h.writes.length,0);
+});
+
+const sourceCase={id:qid,topic:'Antepartum',intro:'Patient assessment',tabs:{Notes:'Clinical chart'},published:false};
+const sourceItem={id:'20000000-0000-0000-0000-000000000002',case_id:qid,stem:'Priority action?',item_type:'Multiple Choice',content:{options:['Assess','Wait']},review_status:'approved',published:false};
+const sourceAnswer={item_id:sourceItem.id,case_id:qid,answer:{correct:['A']},rationale:'Assess first'};
+const transfer=h=>h.load('app/api/admin/ngn/transfer/route.ts').POST(post('',{caseId:qid}));
+test('NGN transfer is administrator-only and never reads or writes for students',async()=>{
+ const h=harness();assert.equal((await transfer(h)).status,403);assert.equal(h.calls.length,0);assert.equal(h.writes.length,0);
+});
+test('NGN transfer converts current source keys and retains chart, IDs and draft publication',async()=>{
+ const h=harness({administrator:true,ngnCases:[sourceCase],ngnItems:[sourceItem],ngnAnswers:[sourceAnswer]});assert.equal((await transfer(h)).status,200);assert.equal(h.writes.length,1);const d=h.writes[0].p_questions[0];assert.equal(d.question.id,sourceItem.id);assert.equal(d.question.bank_section,'ngn');assert.deepEqual(d.question.chart,sourceCase.tabs);assert.equal(d.solution.answer_key,'o1');assert.equal(d.solution.rationale,'Assess first');assert(!d.question.published);assert.deepEqual(h.writes[0].p_source.items,[sourceItem]);
+});
+test('six-question cases, incomplete approvals, published sources and unsupported content cannot transfer',async()=>{
+ for(const items of [Array.from({length:6},(_,i)=>({...sourceItem,id:String(i)})),[{...sourceItem,review_status:'needs_review'}],[{...sourceItem,published:true}],[{...sourceItem,item_type:'Unknown'}]]){
+  const h=harness({administrator:true,ngnCases:[sourceCase],ngnItems:items,ngnAnswers:[sourceAnswer]});assert.equal((await transfer(h)).status,400);assert.equal(h.writes.length,0);
+ }
+});
+test('transferred sources are hidden only when mapped, with existing six-item cases retained',async()=>{
+ const c2={...sourceCase,id:'other'};const h=harness({administrator:true,ngnCases:[sourceCase,c2],ngnItems:[{...sourceItem,qbank_question_id:sourceItem.id},{...sourceItem,id:'second',case_id:'other'}],ngnAnswers:[sourceAnswer]});const response=await h.load('app/api/admin/ngn/route.ts').GET(),data=await response.json();assert.deepEqual(data.cases.map(c=>c.id),['other']);assert.equal(data.items.length,1);assert.equal(data.answers.length,0);assert.equal(h.writes.length,0);
+});
+test('stale transfer or duplicate IDs are reported without overwriting or publishing',async()=>{
+ for(const code of ['40001','23505']){const h=harness({administrator:true,ngnCases:[sourceCase],ngnItems:[sourceItem],ngnAnswers:[sourceAnswer],transferError:{code}});assert.equal((await transfer(h)).status,409);assert.equal(h.writes.length,0)}
+});
+
+test('all new NGN formats submit original selections and points through existing study/timed archives',async()=>{
+ for(const mode of ['study','test'])for(const format of standalone.ngnFormats){const d=standalone.ngnTemplate(format);d.question.id=qid;const key=d.solution.answer_key,expected=scoring.scoreQuestion({...d.question,answer_key:key},key);const h=harness({attempts:[{...attempt,mode}],snapshots:[{attempt_id:id,question_id:qid,position:1,question_snapshot:d.question,solution_snapshot:d.solution}]});
+ const result=await h.load('app/api/exams/submit/route.ts').POST(post('',{...payload,mode,answers:{[qid]:key}}));assert.equal(result.status,200);assert.equal((await result.json()).earned,expected.earned);assert.deepEqual(h.writes[0].p_responses[0].response,key);assert.equal(h.writes[0].p_responses[0].possible,expected.possible);
+ }
 });

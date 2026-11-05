@@ -15,7 +15,8 @@ export async function GET(){
  ]);
  const error=cases.error||items.error||answers.error;
  if(error)return NextResponse.json({error:error.message},{status:500});
- return NextResponse.json({cases:cases.data,items:items.data,answers:answers.data},{headers:{'Cache-Control':'no-store'}});
+ const visibleItems=(items.data??[]).filter(item=>!item.qbank_question_id),visibleCases=(cases.data??[]).filter(c=>!(items.data??[]).some(i=>i.case_id===c.id)||(visibleItems.some(i=>i.case_id===c.id)));
+ return NextResponse.json({cases:visibleCases,items:visibleItems,answers:(answers.data??[]).filter(answer=>visibleItems.some(i=>i.id===answer.item_id))},{headers:{'Cache-Control':'no-store'}});
 }
 export async function PATCH(req:NextRequest){
  if(!await requireNgnAdmin())return unauthorized();
@@ -36,6 +37,8 @@ export async function PATCH(req:NextRequest){
  const column=body.kind==='answer'?'item_id':'id';
  const {data:old,error:readError}=await db.from(table).select('*').eq(column,body.id).single();
  if(readError||!old)return NextResponse.json({error:'Record not found'},{status:404});
+ if(old.qbank_question_id||body.kind==='answer'&&(await db.from('ngn_items').select('*').eq('id',body.id).single()).data?.qbank_question_id)return NextResponse.json({error:'This question was moved. Edit it in the Question Bank Studio.'},{status:409});
+ if(body.kind==='case'){const moved=await db.from('ngn_items').select('*').eq('case_id',body.id);if(moved.error)return NextResponse.json({error:'Could not verify source items.'},{status:500});if(moved.data?.some(i=>i.qbank_question_id))return NextResponse.json({error:'This content was transferred to the Question Bank Studio.'},{status:409})}
  // A text/content change invalidates review; editing an approved record cannot silently keep it published.
  const contentKeys=body.kind==='case'?['title','topic','intro','tabs']:body.kind==='item'?['stem','item_type','content','scoring_rule']:['answer','answer_text','rationale'];
  if(contentKeys.some(k=>k in fields)){

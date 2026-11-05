@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
+import {isNgnQuestion} from '@/lib/ngn-standalone.mjs';
 import {Exam} from '@/components/exam';
 import type {Question,Category} from '@/lib/questions';
 
@@ -16,7 +17,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
  const [examMode,setExamMode]=useState<'study'|'test'>(initialMode);
  const [topics,setTopics]=useState<Category[]>([...pillars]);
  const [statuses,setStatuses]=useState<Status[]>(['unused','incorrect','omitted','correct']);
- const [includeNGN,setIncludeNGN]=useState(true);
+ const [section,setSection]=useState<'all'|'standard'|'ngn'>('all');
  const [count,setCount]=useState(20);
  const [questions,setQuestions]=useState<Question[]>([]);
  const [latest,setLatest]=useState<Record<string,Status>>({});
@@ -47,9 +48,9 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
    finally{if(!ignore)setLoading(false)}
  })();return()=>{ignore=true}},[]);
  const eligible=useMemo(()=>questions.filter(q=>topics.includes(q.category)&&
-   (includeNGN||q.type!=='matrix')&&statuses.includes(latest[q.id]??'unused')
- ),[questions,topics,includeNGN,statuses,latest]);
- const countByStatus=(status:Status)=>questions.filter(q=>topics.includes(q.category)&&(includeNGN||q.type!=='matrix')&&(latest[q.id]??'unused')===status).length;
+   (section==='all'||(section==='ngn'?isNgnQuestion(q):!isNgnQuestion(q)))&&statuses.includes(latest[q.id]??'unused')
+ ),[questions,topics,section,statuses,latest]);
+ const countByStatus=(status:Status)=>questions.filter(q=>topics.includes(q.category)&&(section==='all'||(section==='ngn'?isNgnQuestion(q):!isNgnQuestion(q)))&&(latest[q.id]??'unused')===status).length;
  const max=Math.min(50,eligible.length);
  function toggleTopic(topic:Category){setTopics(current=>current.includes(topic)?current.filter(t=>t!==topic):[...current,topic])}
  function toggleStatus(status:Status){setStatuses(current=>current.includes(status)?current.filter(t=>t!==status):[...current,status])}
@@ -76,17 +77,17 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
   </div>
   <div className={shell}>
     <h2 className="text-2xl">Question Category <span className="text-rose text-sm" title="Select one or more maternity pillars">ⓘ</span></h2>
-    <div className="inline-flex bg-oatmeal rounded-full p-1 mt-5"><span className={pill(true)}>Subjects</span><span className="px-5 py-2 text-sm text-espresso/40">Client Needs · coming soon</span></div>
+    <div className="flex flex-wrap gap-2 mt-5" role="group" aria-label="Question bank section">{([['all','All Questions'],['standard','Standard Questions'],['ngn','NGN Questions']] as const).map(([value,label])=><button key={value} className={pill(section===value)} aria-pressed={section===value} onClick={()=>setSection(value)}>{label}</button>)}</div><div className="inline-flex bg-oatmeal rounded-full p-1 mt-5"><span className={pill(true)}>Subjects</span><span className="px-5 py-2 text-sm text-espresso/40">Client Needs · coming soon</span></div>
     <div className="mt-6"><label className="inline-flex items-center gap-2 font-semibold text-sm">
       <input type="checkbox" className="accent-mauve h-4 w-4" checked={topics.length===pillars.length} onChange={()=>setTopics(topics.length===pillars.length?[]:[...pillars])}/> All maternity subjects
     </label></div>
     <div className="grid sm:grid-cols-2 gap-x-10 gap-y-5 mt-6">
       {pillars.map(topic=><label key={topic} className="flex items-center justify-between gap-3 cursor-pointer rounded-xl border border-rose/25 bg-cream/45 px-4 py-3">
         <span className="flex gap-3 items-center"><input type="checkbox" className="accent-mauve h-4 w-4" checked={topics.includes(topic)} onChange={()=>toggleTopic(topic)}/><span className="text-sm font-medium">{topic}</span></span>
-        <span className="pill">{questions.filter(q=>q.category===topic).length}</span>
+        <span className="pill">{questions.filter(q=>q.category===topic&&(section==='all'||(section==='ngn'?isNgnQuestion(q):!isNgnQuestion(q)))).length}</span>
       </label>)}
     </div>
-    <label className="flex items-center gap-2 mt-6 text-sm"><input type="checkbox" className="accent-mauve" checked={includeNGN} onChange={e=>setIncludeNGN(e.target.checked)}/> Include NGN matrix items</label>
+    <p className="mt-6 text-sm text-espresso/70">NGN Questions includes standalone bowties, highlighted findings, cloze, drag-and-drop, and matrix questions. Six-question case studies stay in NGN Case Studies.</p>
     <p className="mt-3 text-xs text-espresso/60">Only published questions appear. Counts reflect your Supabase content, not the example platform.</p>
   </div>
   <div className={shell}>
