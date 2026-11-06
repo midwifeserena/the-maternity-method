@@ -1,4 +1,7 @@
 'use client';
+import {ExamImages} from './exam-images';
+import {NgnExamWindow} from './ngn-exam-window';
+import {useChoiceStrikeout} from './use-choice-strikeout';
 import {QuestionResponse} from './question-response';
 import {NursingTip} from './nursing-tip';
 import {useEffect,useMemo,useState} from 'react';
@@ -8,15 +11,17 @@ type Item={id:string;case_id:string;item_number:number;item_type:string;stem:str
 type Result={itemId:string;earned:number;possible:number;answer:Record<string,unknown>;answerText:string;rationale:string};
 type Response=Record<string,unknown>;
 const letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-function ItemControl({item,value,onChange,disabled,solution}:{solution?:unknown;item:Item;value:Response;onChange:(next:Response)=>void;disabled:boolean}){
+function ItemControl({item,value,onChange,disabled,solution,struck,onToggleStrike}:{struck:string[];onToggleStrike:(id:string)=>void;solution?:unknown;item:Item;value:Response;onChange:(next:Response)=>void;disabled:boolean}){
  const c=item.content;
- if(c.question)return <QuestionResponse question={c.question} answer={value.response} solution={solution} disabled={disabled} onChange={response=>onChange({response})}/>;
+ const choiceEvents=useChoiceStrikeout(value,onChange,onToggleStrike,!disabled&&item.item_type!=='Select All That Apply'&&!item.item_type.startsWith('Drag and Drop'));
+ if(c.question)return <QuestionResponse struckOptions={struck} onToggleStrike={onToggleStrike} question={c.question} answer={value.response} solution={solution} disabled={disabled} onChange={response=>onChange({response})}/>;
  const toggle=(key:string,v:string|number,max?:number)=>{const original=Array.isArray(value[key])?value[key] as (string|number)[]:[];const next=original.includes(v)?original.filter(x=>x!==v):max&&original.length>=max?[...original.slice(1),v]:[...original,v];onChange({...value,[key]:next})};
  const choices=(c.options as string[]|undefined);
  if(choices){
   const multi=item.item_type==='Select All That Apply'||item.item_type.startsWith('Drag and Drop');
   const selected=(value.correct as string[]|undefined)??[];
-  return <div className="space-y-2">{choices.map((option,i)=>{const letter=letters[i];return <label key={i} className="flex gap-3 items-start rounded-xl border border-rose/30 p-3 bg-white cursor-pointer"><input disabled={disabled} type={multi?'checkbox':'radio'} name={'opt-'+item.id} checked={selected.includes(letter)} onChange={()=>onChange({correct:multi?(selected.includes(letter)?selected.filter(x=>x!==letter):[...selected,letter]):[letter]})} className="accent-mauve mt-1"/><span className="text-sm">{multi?'':letter+'. '}{option}</span></label>})}</div>;
+  const expected=(solution as {correct?:string[]}|undefined)?.correct;
+  return <div>{choices.map((option,i)=>{const letter=letters[i],chosen=selected.includes(letter),correct=expected?.includes(letter),crossed=struck.includes(letter);return <div key={i} className={'ngn-choice-row'+(expected?(correct?' ngn-answer-correct':chosen?' ngn-answer-incorrect':''):'')}><label className="ngn-choice" onMouseDown={choiceEvents.onMouseDown} onDoubleClick={event=>choiceEvents.onDoubleClick(letter,event)}><input aria-label={option} disabled={disabled} type={multi?'checkbox':'radio'} name={'opt-'+item.id} checked={chosen} onChange={()=>onChange({correct:multi?(chosen?selected.filter(x=>x!==letter):[...selected,letter]):[letter]})}/><span className={crossed?'ngn-choice-crossed':''}>{letter}. {option}{expected&&<small className="block">{chosen?'Your answer. ':''}{correct?'Correct answer. ':''}</small>}</span></label>{!multi&&!disabled&&<button type="button" className="ngn-choice-strike" aria-label={(crossed?'Restore ':'Cross out ')+option} aria-pressed={crossed} onClick={()=>onToggleStrike(letter)}>{crossed?'Restore':'Cross out'}</button>}</div>})}</div>;
  }
  if(item.item_type==='Highlight'){
   const selected=(value.highlight_segments as number[]|undefined)??[];
@@ -24,7 +29,7 @@ function ItemControl({item,value,onChange,disabled,solution}:{solution?:unknown;
  }
  if(item.item_type.startsWith('Matrix')){
   const columns=c.columns as string[];const rows=c.rows as string[];const current=(value.rows as string[][]|undefined)??[];
-  return <div className="overflow-x-auto"><table className="w-full text-sm border-collapse"><thead><tr><th className="p-3 text-left">Finding / action</th>{columns.map(v=><th key={v} className="p-3 text-center text-xs">{v}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i} className="border-t border-rose/30"><td className="p-3">{r}</td>{columns.map(col=><td key={col} className="text-center p-2"><input aria-label={r+': '+col} disabled={disabled} type={c.multiple_per_row?'checkbox':'radio'} name={'row-'+item.id+'-'+i} checked={(current[i]??[]).includes(col)} onChange={()=>{const next=Array.from({length:rows.length},(_,j)=>current[j]??[]);next[i]=c.multiple_per_row?(next[i].includes(col)?next[i].filter(x=>x!==col):[...next[i],col]):[col];onChange({rows:next})}} className="accent-mauve"/></td>)}</tr>)}</tbody></table></div>;
+  return <div className="overflow-x-auto"><table className="w-full text-sm border-collapse"><thead><tr><th className="p-3 text-left">Finding / action</th>{columns.map(v=><th key={v} className="p-3 text-center text-xs">{v}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i} className="border-t border-rose/30"><td className="p-3">{r}</td>{columns.map(col=><td key={col} className={'text-center p-2'+(solution?((solution as {rows?:string[][]}).rows?.[i]?.includes(col)?' ngn-answer-correct':(current[i]??[]).includes(col)?' ngn-answer-incorrect':''):'')}><input aria-label={r+': '+col} disabled={disabled} type={c.multiple_per_row?'checkbox':'radio'} name={'row-'+item.id+'-'+i} checked={(current[i]??[]).includes(col)} onChange={()=>{const next=Array.from({length:rows.length},(_,j)=>current[j]??[]);next[i]=c.multiple_per_row?(next[i].includes(col)?next[i].filter(x=>x!==col):[...next[i],col]):[col];onChange({rows:next})}} className="accent-mauve"/></td>)}</tr>)}</tbody></table></div>;
  }
  if(item.item_type.includes('Cloze')){
   const bank=(c.blanks??[]) as string[][];
@@ -42,15 +47,16 @@ function ItemControl({item,value,onChange,disabled,solution}:{solution?:unknown;
 }
 export function NgnBuilder(){
  const [cases,setCases]=useState<Case[]>([]),[items,setItems]=useState<Item[]>([]);
- const [category,setCategory]=useState('All'),[selected,setSelected]=useState<string[]>([]);
+ const [category,setCategory]=useState('All');
  const [active,setActive]=useState<Case|null>(null),[index,setIndex]=useState(0),[tab,setTab]=useState('');
+ const [strikes,setStrikes]=useState<Record<string,string[]>>({});
  const [responses,setResponses]=useState<Record<string,Response>>({}),[results,setResults]=useState<Result[]|null>(null),[score,setScore]=useState('');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  useEffect(()=>{fetch('/api/ngn?formats=extended-v1',{cache:'no-store'}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);setCases(data.cases);setItems(data.items)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[]);
  const filtered=useMemo(()=>cases.filter(c=>category==='All'||c.topic===category),[cases,category]);
  const current=useMemo(()=>active?items.filter(i=>i.case_id===active.id).sort((a,b)=>a.item_number-b.item_number):[],[active,items]);
  const item=current[index];
- function start(c:Case){setActive(c);setSelected([c.id]);setIndex(0);setTab(Object.keys(c.tabs)[0]??'');setResponses({});setResults(null);setScore('');setError('')}
+ function start(c:Case){setStrikes({});setActive(c);setIndex(0);setTab(Object.keys(c.tabs)[0]??'');setResponses({});setResults(null);setScore('');setError('')}
  function back(){setActive(null);setResults(null);setError('')}
  async function submit(){if(!active)return;setBusy(true);setError('');try{const r=await fetch('/api/ngn?formats=extended-v1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseId:active.id,responses})});const data=await r.json();if(!r.ok)throw Error(data.error);setResults(data.results);setScore(data.earned+'/'+data.possible);setIndex(0)}catch(e){setError(e instanceof Error?e.message:'Submission failed')}finally{setBusy(false)}}
  const shell='rounded-2xl border border-rose/30 bg-[#FFF9F2] p-5 md:p-7';
@@ -65,16 +71,10 @@ export function NgnBuilder(){
  const result=results?.find(r=>r.itemId===item.id);
  const chart=(item.content.question as any)?.chart??active.tabs;
  const currentTab=Object.hasOwn(chart,tab)?tab:Object.keys(chart)[0]??'';
- return <div className="space-y-4 max-w-7xl">
-  <div className="flex flex-wrap gap-3 justify-between items-center"><button onClick={back} className="btn-outline">← Case library</button><div className="text-sm font-semibold text-mauve">{active.topic} · Case {active.case_number} · Question {index+1} of {current.length}</div>{results&&<span className="pill">Score: {score}</span>}</div>
-  <div className="h-2 bg-oatmeal rounded-full overflow-hidden"><div style={{width:((index+1)/current.length*100)+'%'}} className="h-full bg-mauve"/></div>
-  <div className="grid lg:grid-cols-[minmax(280px,42%)_1fr] gap-4 items-start">
-   <aside className={shell}><div className="flex items-center justify-between"><h2 className="text-2xl">Patient Chart</h2><span className="pill">{active.topic}</span></div><p className="mt-3 text-sm">{active.intro}</p><div role="tablist" className="flex flex-wrap gap-2 mt-6">{Object.keys(chart).map(t=><button role="tab" aria-selected={currentTab===t} onClick={()=>setTab(t)} key={t} className={'rounded-lg px-3 py-2 text-xs font-semibold '+(currentTab===t?'bg-mauve text-white':'bg-oatmeal text-mauve')}>{t}</button>)}</div><div role="tabpanel" className="mt-4 whitespace-pre-wrap leading-relaxed text-sm bg-white rounded-xl border border-rose/20 p-4 min-h-40">{chart[currentTab]}</div></aside>
-   <section className={shell}><div className="flex flex-wrap gap-2 justify-between mb-5"><span className="pill">{({MCQ:'Multiple choice',SATA:'Select all that apply',ORDER:'Ordered response',MATRIX:'Matrix question',HIGHLIGHT:'Highlight findings',DROPDOWN_CLOZE:'Drop-down cloze',DROPDOWN_RATIONALE:'Paired rationale cloze',DRAGDROP_CLOZE:'Drag-and-drop cloze',BOWTIE:'Bowtie'} as Record<string,string>)[item.item_type]??item.item_type}</span><span className="text-xs text-espresso/60">Scoring: {item.scoring_rule==='dyad'?'1 point when both blanks are correct':item.scoring_rule}</span></div><h2 className="text-xl md:text-2xl mb-6">{item.stem}</h2><ItemControl solution={result?.answer?.answer_key} item={item} value={responses[item.id]??{}} disabled={!!results} onChange={v=>setResponses(s=>({...s,[item.id]:v}))}/>
-    {result&&<div className="mt-6 rounded-xl bg-oatmeal p-5"><h3 className="font-bold">Review · {result.earned}/{result.possible} points</h3><p className="text-sm mt-3 whitespace-pre-wrap"><strong>Correct response: </strong>{result.answerText}</p><p className="text-sm mt-4 whitespace-pre-wrap"><strong>Rationale: </strong>{result.rationale}</p><NursingTip text={typeof result.answer.nursing_tip==='string'?result.answer.nursing_tip:null}/></div>}
-    {error&&<p className="mt-4 text-sm text-red-700" role="alert">{error}</p>}
-    <div className="mt-7 flex flex-wrap justify-between gap-3"><button className="btn-outline disabled:opacity-40" disabled={index===0} onClick={()=>setIndex(i=>i-1)}>← Previous</button><div className="flex gap-2">{index<current.length-1?<button className="btn-primary" onClick={()=>setIndex(i=>i+1)}>Next →</button>:!results?<button className="btn-primary disabled:opacity-40" disabled={busy||current.some(i=>!responses[i.id])} onClick={submit}>{busy?'Checking…':'Submit case for review →'}</button>:<button className="btn-primary" onClick={back}>Finish case →</button>}</div></div>
-   </section>
-  </div><div className="flex flex-wrap gap-2">{current.map((i,n)=><button onClick={()=>setIndex(n)} aria-label={'Go to item '+(n+1)} key={i.id} className={'rounded-full w-9 h-9 text-sm font-semibold '+(n===index?'bg-mauve text-white':responses[i.id]?'bg-blush text-mauve':'bg-oatmeal text-espresso/70')}>{n+1}</button>)}</div>
- </div>;
+ return <NgnExamWindow caseLabel={`${active.topic} · Case ${active.case_number}`} itemId={item.id} index={index} count={current.length} tabKey={currentTab} score={score} review={Boolean(results)} busy={busy} answered={current.map(i=>Boolean(responses[i.id]))} onPrevious={()=>setIndex(i=>i-1)} onNext={()=>setIndex(i=>i+1)} onJump={setIndex} onSubmit={submit} onExit={back}
+  chart={<><p className="ngn-exam-intro" data-exam-annotation="intro">{active.intro}</p><div role="tablist" aria-label="Patient chart sections" className="ngn-exam-tabs">{Object.keys(chart).map((t,n)=><button id={`ngn-chart-tab-${n}`} aria-controls={`ngn-chart-panel-${n}`} type="button" role="tab" aria-selected={currentTab===t} onClick={()=>setTab(t)} key={t}>{t}</button>)}</div><div id={`ngn-chart-panel-${Object.keys(chart).indexOf(currentTab)}`} aria-labelledby={`ngn-chart-tab-${Object.keys(chart).indexOf(currentTab)}`} role="tabpanel" tabIndex={0} className="ngn-exam-tab-content" data-exam-annotation={'chart:'+currentTab}>{chart[currentTab]}</div></>}
+  question={<><p className="ngn-item-type">{item.item_type} · Scoring: {item.scoring_rule==='dyad'?'1 point when both blanks are correct':item.scoring_rule}</p><h1 className="ngn-stem" data-exam-annotation="stem">{item.stem}</h1><ExamImages images={item.content.question?.images} label="Question image"/><ItemControl struck={strikes[item.id]??[]} onToggleStrike={id=>setStrikes(old=>({...old,[item.id]:(old[item.id]??[]).includes(id)?old[item.id].filter(x=>x!==id):[...(old[item.id]??[]),id]}))} solution={result?.answer?.answer_key??result?.answer} item={item} value={responses[item.id]??{}} disabled={!!results||busy} onChange={v=>setResponses(old=>{const next={...old};if(!Object.keys(v).length||(Object.keys(v).length===1&&'response' in v&&v.response===undefined))delete next[item.id];else next[item.id]=v;return next;})}/>
+   {result&&<section className="ngn-result" aria-label="Answer explanation"><h2>Review · {result.earned}/{result.possible} points</h2><p><strong>Correct response: </strong>{result.answerText}</p><p data-exam-annotation="rationale"><strong>Rationale: </strong>{result.rationale}</p><ExamImages images={result.answer.rationale_images as {url:string;alt:string}[]|undefined} label="Rationale image"/><NursingTip text={typeof result.answer.nursing_tip==='string'?result.answer.nursing_tip:null}/></section>}
+   {error&&<p className="mt-4 text-red-700" role="alert">{error}</p>}
+  </>}/>;
 }
