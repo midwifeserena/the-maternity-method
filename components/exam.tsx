@@ -1,4 +1,7 @@
 'use client';
+import {useExamAnnotations} from './use-exam-annotations';
+import {useChoiceStrikeout} from './use-choice-strikeout';
+import './exam-annotations.css';
 import {useCallback,useEffect,useRef,useState,type CSSProperties} from 'react';
 import {useRouter} from 'next/navigation';
 import {Bookmark,Calculator,Check,ChevronLeft,ChevronRight,Clock,Highlighter,ListChecks,LogOut,Pause,Play,Settings,Strikethrough,X} from 'lucide-react';
@@ -36,6 +39,8 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
  const [result,setResult]=useState<{attemptId?:string;earned:number;possible:number}|null>(null);
  const remaining=Math.max(0,DURATION-elapsed),expired=mode==='test'&&remaining===0;
  const question=items[index],answer=question?answers[question.id]:undefined,review=question?feedback[question.id]:undefined;
+ const annotations=useExamAnnotations(shell,question?.id??'',tab);
+ const choiceEvents=useChoiceStrikeout<Answer|undefined>(answer,value=>{if(value!==undefined)choose(value);else if(question)setAnswers(old=>{const next={...old};delete next[question.id];return next;});},id=>{if(!question)return;setStrikes(old=>({...old,[question.id]:(old[question.id]??[]).includes(id)?old[question.id].filter(x=>x!==id):[...(old[question.id]??[]),id]}));},question?.type==='single'&&!review&&!checking&&phase==='active'&&!paused);
  const answered=items.filter(item=>isQuestionAnswered(item,answers[item.id])).length;
  const exit=useCallback(()=>{if(onExit)onExit();else router.push('/question-bank')},[onExit,router]);
 
@@ -116,13 +121,14 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
  const chart=question?.chart??{},chartTabs=Object.keys(chart),currentTab=chartTabs.includes(tab)?tab:chartTabs[0];
  const disabled=phase!=='active'||paused||checking;
 
- return <dialog ref={shell} className="exam-shell" data-theme={theme} style={{'--exam-font-size':fontSize+'px'} as CSSProperties} aria-label={mode==='study'?'Study test':'Timed practice exam'} onCancel={event=>{if(event.target===shell.current){event.preventDefault();if(phase==='active')setPanel('end')}}}>
+ return <dialog onContextMenu={annotations.onContextMenu} onMouseUp={annotations.rememberSelection} onKeyUp={annotations.rememberSelection} ref={shell} className="exam-shell" data-theme={theme} style={{'--exam-font-size':fontSize+'px'} as CSSProperties} aria-label={mode==='study'?'Study test':'Timed practice exam'} onCancel={event=>{if(event.target===shell.current){event.preventDefault();if(phase==='active')setPanel('end')}}}>
   <header className="exam-topbar">
    <span>{mode==='study'?'Study test (Tutored, Untimed)':'Practice exam (Timed)'}</span><strong className="exam-brand">The Maternity Method</strong>
    <div className="exam-meta"><span className="exam-clock" aria-label={mode==='test'?'Time remaining':'Elapsed study time'}><Clock size={18}/>{formatExamTime(mode==='test'?remaining:elapsed)}</span><span>Question {items.length?index+1:0} of {items.length}</span></div>
   </header>
   <nav className="exam-toolbar" aria-label="Exam tools">
    <button type="button" onClick={()=>setPanel('calculator')} disabled={phase!=='active'}><Calculator size={18}/>Calculator</button>
+   <button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>annotations.highlightSelection()}><Highlighter size={18}/>Highlight selection</button><button type="button" onClick={annotations.clearHighlights}>Clear text highlights</button><span className="exam-sr-only" role="status">{annotations.notice}</span>
    <button type="button" onClick={()=>setHighlights(current=>current.includes(question.id)?current.filter(id=>id!==question.id):[...current,question.id])} disabled={disabled||!question} aria-pressed={question?highlights.includes(question.id):false}><Highlighter size={18}/>Highlight</button>
    <button type="button" onClick={()=>setStrikeMode(value=>!value)} disabled={disabled||!question} aria-pressed={strikeMode}><Strikethrough size={18}/>Strike options</button>
    <span className="exam-toolbar-spacer"/>
@@ -136,11 +142,11 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
     :result?<section className="exam-centered"><p>Test submitted</p><h1>Your results</h1><strong className="exam-score">{result.possible?Math.round(result.earned/result.possible*100):0}%</strong><p>{result.earned} of {result.possible} available points</p><p>Your attempt is saved in Previous Tests and Performance.</p><div className="exam-actions"><button type="button" onClick={()=>router.push('/previous-tests')}>View previous tests</button>{result.attemptId&&<button type="button" onClick={()=>router.push('/previous-tests/'+result.attemptId)}>Review this exam</button>}<button type="button" onClick={exit}>Return to test builder</button></div></section>
     :paused?<section className="exam-centered"><h1>{expired?'Time is up':'Test paused'}</h1><p>{expired?'Submit your responses to save this attempt.':'Your questions are hidden and the timer is stopped.'}</p>{message&&<p role="alert">{message}</p>}<div className="exam-actions">{expired?<button type="button" onClick={()=>void finish()}>Retry submission</button>:<><button type="button" onClick={()=>{setPaused(false);setMessage('')}}>Resume test</button><button type="button" onClick={()=>setPanel('end')}>End test</button></>}</div></section>
     :question&&<div className={chartTabs.length?'exam-question-layout exam-with-chart':'exam-question-layout'}>
-     {chartTabs.length>0&&<aside className="exam-chart" aria-label="Patient chart"><h2>Patient chart</h2><div className="exam-chart-tabs" role="tablist" aria-label="Clinical chart sections">{chartTabs.map((title,n)=><button type="button" role="tab" id={'exam-chart-tab-'+n} aria-selected={currentTab===title} aria-controls="exam-chart-panel" key={title} onClick={()=>setTab(title)}>{title}</button>)}</div><div id="exam-chart-panel" role="tabpanel" aria-labelledby={'exam-chart-tab-'+chartTabs.indexOf(currentTab)} className="exam-chart-content">{chart[currentTab]}</div></aside>}
+     {chartTabs.length>0&&<aside className="exam-chart" aria-label="Patient chart"><h2>Patient chart</h2><div className="exam-chart-tabs" role="tablist" aria-label="Clinical chart sections">{chartTabs.map((title,n)=><button type="button" role="tab" id={'exam-chart-tab-'+n} aria-selected={currentTab===title} aria-controls="exam-chart-panel" key={title} onClick={()=>setTab(title)}>{title}</button>)}</div><div id="exam-chart-panel" role="tabpanel" aria-labelledby={'exam-chart-tab-'+chartTabs.indexOf(currentTab)} className="exam-chart-content" data-exam-annotation={'chart:'+currentTab}>{chart[currentTab]}</div></aside>}
      <article className="exam-question">
       {!reviewAvailable&&<p className="exam-question-kind">Detailed question snapshots are not enabled for this session.</p>}
       <p className="exam-question-kind">{question.category} · {question.ngn_format?({'calculation':'Calculation','ordered':'Ordered response','dyad-cloze':'Paired rationale cloze','bowtie':'Bowtie','highlight':'Highlight findings','cloze':'Drop-down cloze','drag-cloze':'Drag-and-drop cloze','drag-select':'Drag-and-drop selection'} as Record<string,string>)[question.ngn_format]:question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
-      <>{question.clinical_scenario&&<p className="exam-clinical-scenario"><FormattedText text={question.clinical_scenario} format={question.content_format}/></p>}</><h1 ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}><FormattedText text={question.stem} format={question.content_format}/></h1>
+      <>{question.clinical_scenario&&<p data-exam-annotation="scenario" className="exam-clinical-scenario"><FormattedText text={question.clinical_scenario} format={question.content_format}/></p>}</><h1 data-exam-annotation="stem" ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}><FormattedText text={question.stem} format={question.content_format}/></h1>
       <ExamImages images={question.images} label="Question image"/>
       {question.ngn_format?<NgnQuestion question={question} answer={answer} solution={review?.answer_key} disabled={Boolean(review)||checking} onChange={choose}/>:question.type==='matrix'?<QuestionMatrix question={question} answer={answer} solution={review?.answer_key} rowExplanations={review?.row_explanations} disabled={Boolean(review)||checking} onChange={choose}/>
        :<fieldset className="exam-options"><legend className="exam-sr-only">{question.type==='sata'?'Select all correct answers':'Select one answer'}</legend>{question.options.map((option,n)=>{
@@ -148,7 +154,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
         const correct=Boolean(review&&(Array.isArray(review.answer_key)?review.answer_key.includes(option.id):review.answer_key===option.id));
         const crossed=(strikes[question.id]??[]).includes(option.id);
         return <div className={'exam-option-row'+(review?(correct?' exam-option-correct':selected?' exam-option-incorrect':''):'')} key={option.id}>
-         <label className="exam-option"><input type={question.type==='single'?'radio':'checkbox'} name={question.id} disabled={Boolean(review)||checking} checked={Boolean(selected)} onChange={()=>choose(question.type==='single'?option.id:selected?(answer as string[]).filter(id=>id!==option.id):[...(Array.isArray(answer)?answer:[]),option.id])}/><span className="exam-option-number">{n+1}.</span><span className={crossed?'exam-option-crossed':''}>{option.label}<ExamImages images={option.images} label="Answer choice image"/></span>{correct&&<Check size={18} aria-label="Correct option"/>}</label>
+         <label className="exam-option" onMouseDown={choiceEvents.onMouseDown} onDoubleClick={event=>choiceEvents.onDoubleClick(option.id,event)}><input type={question.type==='single'?'radio':'checkbox'} name={question.id} disabled={Boolean(review)||checking} checked={Boolean(selected)} onChange={()=>choose(question.type==='single'?option.id:selected?(answer as string[]).filter(id=>id!==option.id):[...(Array.isArray(answer)?answer:[]),option.id])}/><span className="exam-option-number">{n+1}.</span><span className={crossed?'exam-option-crossed':''}>{option.label}<ExamImages images={option.images} label="Answer choice image"/></span>{correct&&<Check size={18} aria-label="Correct option"/>}</label>
          {strikeMode&&!review&&<button type="button" className="exam-strike-button" aria-label={'Strike option '+(n+1)} aria-pressed={crossed} onClick={()=>setStrikes(current=>({...current,[question.id]:crossed?(current[question.id]??[]).filter(id=>id!==option.id):[...(current[question.id]??[]),option.id]}))}><Strikethrough size={17}/></button>}
         </div>;
        })}</fieldset>}
