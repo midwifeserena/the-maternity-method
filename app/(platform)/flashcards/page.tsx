@@ -1,109 +1,62 @@
 'use client';
-
 import {useEffect,useMemo,useState} from 'react';
+import {BookOpen,Check,ChevronLeft,ChevronRight,ListChecks,RotateCcw,Search,Shuffle,Square,Star,Volume2} from 'lucide-react';
 import {createClient} from '@/lib/supabase/client';
-
-type Card={id:string;card_number:number;topic:string;front:string;back:string;high_yield:boolean};
-
+import {readCardProgress,shuffled,type StudyCard,type CardRating,type CardProgress} from '@/lib/flashcard-study.mjs';
+import {useFlashcardSpeech} from '@/components/use-flashcard-speech';
+import {FlashcardTest} from '@/components/flashcard-test';
+import '@/components/flashcard-study.css';
 export default function FlashcardsPage(){
- const [cards,setCards]=useState<Card[]>([]);
- const [status,setStatus]=useState<'loading'|'ready'|'error'>('loading');
- const [error,setError]=useState('');
- const [retry,setRetry]=useState(0);
- const [topic,setTopic]=useState('All');
- const [search,setSearch]=useState('');
- const [highYield,setHighYield]=useState(false);
- const [order,setOrder]=useState<string[]>([]);
- const [position,setPosition]=useState(0);
- const [flipped,setFlipped]=useState(false);
-
- useEffect(()=>{
-  const controller=new AbortController();
-  setStatus('loading');
-  (async()=>{
-   try{
-    const db=createClient();
-    const {data:{user}}=await db.auth.getUser();
-    if(controller.signal.aborted)return;
-    if(!user){setError('Please sign in again to study flashcards.');setStatus('error');return}
-    const loaded:Card[]=[];
-    const pageSize=500;
-    for(let start=0;;start+=pageSize){
-     const {data,error:loadError}=await db.from('flashcard_library')
-      .select('id,card_number,topic,front,back,high_yield')
-      .eq('published',true).eq('review_status','approved')
-      .order('card_number',{ascending:true}).order('id',{ascending:true})
-      .range(start,start+pageSize-1).abortSignal(controller.signal);
-     if(controller.signal.aborted)return;
-     if(loadError)throw loadError;
-     loaded.push(...(data??[]) as Card[]);
-     if((data??[]).length<pageSize)break;
-    }
-    setCards(loaded);setStatus('ready');
-   }catch{
-    if(!controller.signal.aborted){setError('Flashcards could not load. Please try again.');setStatus('error')}
-   }
-  })();
-  return()=>controller.abort();
- },[retry]);
-
- const topics=useMemo(()=>Array.from(new Set(cards.map(card=>card.topic))),[cards]);
- const filtered=useMemo(()=>{
-  const term=search.trim().toLowerCase();
-  return cards.filter(card=>(topic==='All'||card.topic===topic)&&(!highYield||card.high_yield)&&(!term||card.front.toLowerCase().includes(term)));
- },[cards,topic,highYield,search]);
- const deck=useMemo(()=>{
-  if(!order.length)return filtered;
-  const byId=new Map(filtered.map(card=>[card.id,card]));
-  return order.flatMap(id=>{const card=byId.get(id);return card?[card]:[]});
- },[filtered,order]);
- const active=deck[position];
- function reset(){setOrder([]);setPosition(0);setFlipped(false)}
- function move(next:number){setPosition(next);setFlipped(false)}
- function shuffle(){
-  const ids=filtered.map(card=>card.id);
-  for(let i=ids.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}
-  setOrder(ids);setPosition(0);setFlipped(false);
+ const [cards,setCards]=useState<StudyCard[]>([]),[status,setStatus]=useState<'loading'|'ready'|'error'>('loading'),[error,setError]=useState(''),[retry,setRetry]=useState(0),[userId,setUserId]=useState('');
+ const [mode,setMode]=useState<'cards'|'learn'|'test'>('cards'),[topic,setTopic]=useState('All'),[search,setSearch]=useState(''),[highYield,setHighYield]=useState(false),[starredOnly,setStarredOnly]=useState(false);
+ const [progress,setProgress]=useState<CardProgress>({ratings:{},starred:[]}),[saveNotice,setSaveNotice]=useState('');
+ const [order,setOrder]=useState<string[]>([]),[position,setPosition]=useState(0),[flipped,setFlipped]=useState(false),[queue,setQueue]=useState<string[]|null>(null),[notice,setNotice]=useState('');
+ useEffect(()=>{const controller=new AbortController();let unsubscribe:(()=>void)|undefined;setStatus('loading');setError('');setCards([]);setUserId('');setProgress({ratings:{},starred:[]});(async()=>{
+  try{
+   const db=createClient();const {data:{user}}=await db.auth.getUser();if(controller.signal.aborted)return;if(!user)throw Error('Please sign in again to study flashcards.');
+   let activeUser=user.id;
+   const subscription=db.auth.onAuthStateChange?.((_event,session)=>{const nextUser=session?.user?.id??'';if(!controller.signal.aborted&&nextUser!==activeUser){activeUser=nextUser;controller.abort();setMode('cards');setOrder([]);setPosition(0);setQueue(null);setFlipped(false);setNotice('');setStatus('loading');setUserId('');setCards([]);setProgress({ratings:{},starred:[]});setRetry(n=>n+1);}});
+   unsubscribe=()=>subscription?.data.subscription.unsubscribe();
+   let saved:CardProgress={ratings:{},starred:[]};try{saved=readCardProgress(localStorage.getItem('tmm:flashcards:v1:'+user.id))}catch{setSaveNotice('Progress can’t be saved in this browser. You can still study.');}
+   const loaded:StudyCard[]=[];for(let start=0;;start+=500){const {data,error:loadError}=await db.from('flashcard_library').select('id,card_number,topic,front,back,high_yield').eq('published',true).eq('review_status','approved').order('card_number',{ascending:true}).order('id',{ascending:true}).range(start,start+499).abortSignal(controller.signal);if(controller.signal.aborted)return;if(loadError)throw Error('Flashcards could not load. Please try again.');loaded.push(...data??[]);if((data?.length??0)<500)break;}
+   if(!controller.signal.aborted){setProgress(saved);setUserId(user.id);setCards(loaded);setStatus('ready');}
+  }catch(e){if(!controller.signal.aborted){setError(e instanceof Error?e.message:'Flashcards could not load. Please try again.');setStatus('error');}}
+ })();return()=>{controller.abort();unsubscribe?.();};},[retry]);
+ useEffect(()=>{if(status!=='ready'||!userId)return;try{localStorage.setItem('tmm:flashcards:v1:'+userId,JSON.stringify(progress))}catch{setSaveNotice('Progress can’t be saved in this browser. You can still study.');}},[progress,userId,status]);
+ const topics=useMemo(()=>[...new Set(cards.map(c=>c.topic))],[cards]);
+ const filtered=useMemo(()=>{const term=search.trim().toLowerCase();return cards.filter(c=>(topic==='All'||c.topic===topic)&&(!highYield||c.high_yield)&&(!starredOnly||progress.starred.includes(c.id))&&(!term||c.front.toLowerCase().includes(term)||c.back.toLowerCase().includes(term)));},[cards,topic,search,highYield,starredOnly,progress.starred]);
+ const deck=useMemo(()=>{if(!order.length)return filtered;const map=new Map(filtered.map(c=>[c.id,c]));return order.flatMap(id=>map.has(id)?[map.get(id)!]:[]);},[filtered,order]);
+ const byId=useMemo(()=>new Map(cards.map(c=>[c.id,c])),[cards]);
+ const active=mode==='learn'?(queue===null?deck[0]:byId.get(queue[0])):deck[Math.min(position,Math.max(0,deck.length-1))];
+ const known=filtered.filter(c=>progress.ratings[c.id]==='known').length,learning=filtered.filter(c=>progress.ratings[c.id]==='learning').length;
+ const speech=useFlashcardSpeech([mode,active?.id??'',topic,search,highYield,starredOnly,order.join(','),flipped].join(':'));
+ function reset(){speech.stop();setOrder([]);setPosition(0);setFlipped(false);setQueue(null);setNotice('');}
+ function mark(id:string,rating:CardRating){setProgress(old=>({...old,ratings:{...old.ratings,[id]:rating}}));}
+ function star(id:string){setProgress(old=>({...old,starred:old.starred.includes(id)?old.starred.filter(v=>v!==id):[...old.starred,id]}));if(starredOnly)reset();}
+ function rate(rating:CardRating){if(!active||!flipped)return;mark(active.id,rating);speech.stop();setFlipped(false);
+  if(mode==='learn'){const current=queue??deck.map(c=>c.id);setQueue(rating==='known'?current.slice(1):[...current.slice(1),active.id]);setNotice(rating==='known'?'Marked Know it.':'Marked Still learning. This card will return at the end of the round.');}
+  else{if(position<deck.length-1)setPosition(position+1);setNotice(rating==='known'?'Marked Know it.':'Marked Still learning.');}
  }
-
- return <div className="max-w-5xl space-y-6">
-  <header>
-   <p className="uppercase tracking-[.28em] font-bold text-mauve text-[11px]">The Maternity Method</p>
-   <h1 className="text-4xl md:text-5xl mt-5">Flashcards</h1>
-   <p className="text-sm text-espresso/70 mt-3">Choose a topic, recall the answer, then flip the card to check.</p>
-  </header>
-  {status==='loading'?<p className="surface p-8" role="status">Loading flashcards…</p>
-   :status==='error'?<div className="surface p-8" role="alert"><p>{error}</p><button type="button" className="btn-primary mt-4" onClick={()=>setRetry(value=>value+1)}>Try again</button></div>
-   :!cards.length?<p className="surface p-8" role="status">No published flashcards are available yet. Please check back soon.</p>
-   :<>
-    <section className="surface p-5 md:p-7 space-y-5" aria-label="Flashcard filters">
-     <div className="grid sm:grid-cols-2 gap-4">
-      <label className="text-sm font-semibold">Topic<select value={topic} onChange={event=>{setTopic(event.target.value);reset()}} className="block w-full mt-2 rounded-xl border border-rose/40 bg-white p-3"><option value="All">All topics</option>{topics.map(value=><option key={value} value={value}>{value}</option>)}</select></label>
-      <label className="text-sm font-semibold">Search questions<input type="search" value={search} onChange={event=>{setSearch(event.target.value);reset()}} placeholder="For example, GTPAL" className="block w-full mt-2 rounded-xl border border-rose/40 bg-white p-3"/></label>
-     </div>
-     <div className="flex flex-wrap justify-between gap-4 items-center">
-      <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={highYield} onChange={event=>{setHighYield(event.target.checked);reset()}} className="accent-mauve"/>High-yield cards only</label>
-      <p className="text-sm text-espresso/65" role="status">{filtered.length} matching cards · {cards.length} total</p>
-     </div>
-    </section>
-    {!active?<div className="surface p-8"><p>No cards match these filters.</p><button type="button" className="btn-outline mt-4" onClick={()=>{setTopic('All');setSearch('');setHighYield(false);reset()}}>Clear filters</button></div>
-     :<section className="surface p-5 md:p-8 space-y-5" aria-label="Flashcard study area">
-      <div className="flex flex-wrap justify-between items-center gap-3"><span className="pill">{active.topic}</span><p className="text-sm text-espresso/65" aria-live="polite">Card {position+1} of {deck.length}</p>{active.high_yield&&<span className="pill">High yield</span>}</div>
-      <button type="button" aria-pressed={flipped} aria-label={flipped?'Show question':'Show answer'} onClick={()=>setFlipped(value=>!value)} className="w-full min-h-64 rounded-2xl border border-rose/50 bg-cream p-6 md:p-10 text-left hover:border-mauve focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-mauve">
-       <span className="block text-xs uppercase tracking-widest font-bold text-mauve mb-5">{flipped?'Answer':'Question'}</span>
-       <span className={'block whitespace-pre-wrap leading-relaxed '+(flipped?'text-base md:text-lg':'text-2xl md:text-3xl font-display')}>{flipped?active.back:active.front}</span>
-       <span className="block text-xs text-espresso/55 mt-6">{flipped?'Click to return to the question':'Click to reveal the answer'}</span>
-      </button>
-      <div className="flex flex-wrap justify-between gap-3">
-       <button type="button" className="btn-outline disabled:opacity-40" disabled={position===0} onClick={()=>move(position-1)}>← Previous</button>
-       <button type="button" className="btn-primary" onClick={()=>setFlipped(value=>!value)}>{flipped?'Show question':'Show answer'}</button>
-       <button type="button" className="btn-outline disabled:opacity-40" disabled={position===deck.length-1} onClick={()=>move(position+1)}>Next →</button>
-      </div>
-      <div className="flex flex-wrap gap-3 border-t border-rose/30 pt-5">
-       <button type="button" className="btn-outline disabled:opacity-40" disabled={deck.length<2} onClick={shuffle}>Shuffle cards</button>
-       <button type="button" className="btn-outline" onClick={()=>move(0)}>Start again</button>
-      </div>
-     </section>}
-   </>}
+ function chooseTopic(value:string){setTopic(value);reset();}
+ function move(next:number){speech.stop();setPosition(next);setFlipped(false);setNotice('');}
+ function review(ids:string[]){speech.stop();setTopic('All');setSearch('');setHighYield(false);setStarredOnly(false);setMode('learn');setQueue(ids);setFlipped(false);setNotice('Reviewing the cards you marked Still learning.');}
+ const cardControls=active?<div className="fc-card-actions"><button type="button" className="fc-icon" aria-label={flipped?'Read definition':'Read term'} disabled={!speech.supported} onClick={()=>speech.speak(flipped?active.back:active.front)}><Volume2 size={19}/></button><button type="button" className="fc-icon" aria-label={progress.starred.includes(active.id)?'Unstar card':'Star card'} aria-pressed={progress.starred.includes(active.id)} onClick={()=>star(active.id)}><Star size={18} fill={progress.starred.includes(active.id)?'currentColor':'none'}/></button></div>:null;
+ return <div className="flashcard-page"><header className="fc-header"><div><p className="fc-eyebrow">The Maternity Method</p><h1>Flashcards</h1><p className="fc-muted mt-3">Recall the term, reveal the definition, and make it stick.</p></div><nav className="fc-tabs" aria-label="Flashcard study modes">{([['cards','Flashcards',BookOpen],['learn','Learn',RotateCcw],['test','Test',ListChecks]] as const).map(([value,label,Icon])=><button type="button" key={value} aria-pressed={mode===value} onClick={()=>{speech.stop();setMode(value);setFlipped(false);setNotice('')}}><Icon size={16}/>{label}</button>)}</nav></header>
+ {status==='loading'?<div className="fc-surface" role="status">Loading flashcards…</div>:status==='error'?<div className="fc-surface" role="alert"><p>{error}</p><button type="button" className="fc-button mt-4" onClick={()=>setRetry(n=>n+1)}>Try again</button></div>:!cards.length?<div className="fc-surface" role="status">No published flashcards are available yet. Please check back soon.</div>:<>
+ <section className="fc-filters" aria-label="Flashcard filters"><label>Topic<select aria-label="Topic" value={topic} onChange={e=>chooseTopic(e.target.value)}><option value="All">All topics</option>{topics.map(t=><option key={t}>{t}</option>)}</select></label><label className="fc-search"><Search size={17}/><input type="search" aria-label="Search cards" placeholder="Search cards, e.g. GTPAL" value={search} onChange={e=>{setSearch(e.target.value);reset();}}/></label><label><input type="checkbox" checked={highYield} onChange={e=>{setHighYield(e.target.checked);reset();}}/>High-yield only</label><label><input type="checkbox" checked={starredOnly} onChange={e=>{setStarredOnly(e.target.checked);reset();}}/><Star size={14}/>Starred only</label></section>
+ {mode!=='test'&&<><div className="fc-statusbar"><p className="fc-muted">{filtered.length} matching cards · {cards.length} published</p><div className="fc-counts"><span className="fc-learning"><strong>{learning}</strong>Still learning</span><span className="fc-known"><strong>{known}</strong>Know it</span></div></div><div className="fc-progress-row"><div className="fc-progress" aria-label="Known cards" role="progressbar" aria-valuemin={0} aria-valuemax={filtered.length||1} aria-valuenow={known}><span style={{width:`${filtered.length?known/filtered.length*100:0}%`}}/></div><span>{known} / {filtered.length} known</span></div>
+ {!filtered.length?<section className="fc-surface"><h2>No cards match these filters.</h2><button type="button" className="fc-button mt-3" onClick={()=>{setTopic('All');setSearch('');setHighYield(false);setStarredOnly(false);reset();}}>Clear filters</button></section>:mode==='learn'&&queue?.length===0?<section className="fc-surface" aria-label="Learning round complete"><p className="fc-eyebrow">Round complete</p><h2 className="mt-3">You marked every card Know it.</h2><p className="fc-muted">Come back to practice again and keep the definitions fresh.</p><button type="button" className="fc-button fc-primary mt-5" onClick={reset}>Study this selection again</button></section>:active&&<div className={mode==='learn'?'fc-study-grid':''}>
+ {mode==='learn'&&<aside className="fc-topics" aria-label="Topic mastery"><h2>Topics</h2>{['All',...topics].map(t=>{const pool=cards.filter(c=>t==='All'||c.topic===t),n=pool.filter(c=>progress.ratings[c.id]==='known').length;return <button type="button" className="fc-topic-button" key={t} aria-pressed={topic===t} onClick={()=>chooseTopic(t)}><span><strong>{t==='All'?'All topics':t}</strong><span>{n}/{pool.length}</span></span><span className="fc-progress"><span style={{width:`${n/pool.length*100}%`}}/></span></button>})}<p className="fc-muted mt-5">Bars show cards you’ve marked Know it.</p></aside>}
+ <section aria-label={mode==='learn'?'Learn flashcard':'Flashcard study area'}><div className="fc-card">
+ {mode==='cards'?<><div className="fc-card-top"><div className="fc-tags"><span className="fc-eyebrow">{flipped?'Definition':'Term'}</span><span className="fc-tag">{active.topic}</span>{active.high_yield&&<span className="fc-tag fc-tag-yield">High yield</span>}</div>{cardControls}</div><button type="button" className="fc-flip" aria-label={flipped?'Flip to term':'Flip to definition'} aria-pressed={flipped} onClick={()=>setFlipped(v=>!v)}><span className={flipped?'fc-definition':'fc-term'}>{flipped?active.back:active.front}</span><span className="fc-hint"><RotateCcw size={13}/>{flipped?'Click to return to the term':'Click the card to reveal the definition'}</span></button></>:<div className="fc-split"><section><div className="fc-statusbar"><p className="fc-eyebrow">Term</p>{cardControls}</div><h3>{active.front}</h3><span className="fc-tag inline-block mt-6">{active.topic}</span></section><section><p className="fc-eyebrow">Definition</p>{flipped?<p className="fc-answer-text">{active.back}</p>:<button type="button" className="fc-reveal" onClick={()=>setFlipped(true)}>Think of your answer, then tap to reveal</button>}</section></div>}
+ </div><div className="fc-bottom"><div className="fc-controls"><button type="button" className="fc-button" disabled={!speech.supported||(mode==='learn'&&!flipped)} onClick={()=>speech.speak(`Term. ${active.front}. Definition. ${active.back}`)}><Volume2 size={16}/>Read both sides</button><button type="button" className="fc-icon" aria-label="Shuffle cards" disabled={filtered.length<2} onClick={()=>{speech.stop();const ids=shuffled(filtered.map(c=>c.id));setOrder(ids);setPosition(0);setQueue(null);setFlipped(false);setNotice('Cards shuffled.');}}><Shuffle size={17}/></button></div><div className="fc-controls">{mode==='cards'&&<button type="button" className="fc-icon" aria-label="Previous card" disabled={position===0} onClick={()=>move(position-1)}><ChevronLeft size={19}/></button>}<button type="button" className="fc-button fc-primary" onClick={()=>setFlipped(v=>!v)}>{flipped?'Show term':'Show definition'}</button>{mode==='cards'&&<button type="button" className="fc-icon" aria-label="Next card" disabled={position>=deck.length-1} onClick={()=>move(position+1)}><ChevronRight size={19}/></button>}</div><span className="fc-muted">{mode==='learn'?`${queue?.length??deck.length} cards left in this round`:`Card ${Math.min(position+1,deck.length)} of ${deck.length}`}</span></div>
+ <div className="fc-rating"><button type="button" className="fc-button" disabled={!flipped} onClick={()=>rate('learning')}><RotateCcw size={17}/>Still learning</button><button type="button" className="fc-button fc-primary" disabled={!flipped} onClick={()=>rate('known')}><Check size={17}/>Know it</button></div><p className="fc-muted mt-3">{!flipped?'Reveal the definition before marking your recall.':mode==='learn'?'Still learning cards return at the end of the round.':'Mark how well you recalled this definition.'}</p>
+ <div className="fc-bottom"><button type="button" className="fc-button" onClick={reset}>Start again</button><span className="fc-muted">{cards.filter(c=>progress.starred.includes(c.id)).length} starred</span></div>
+ </section></div>}
+ <p className="fc-audio-status" role="status">{notice}</p><div className="fc-audio-controls">{speech.reading&&<button type="button" className="fc-button" onClick={speech.stop}><Square size={14}/>Stop reading</button>}{speech.supported&&<label className="fc-muted">Reading speed <select aria-label="Reading speed" value={speech.rate} onChange={e=>{speech.stop();speech.setRate(Number(e.target.value));}}><option value={0.8}>Slower</option><option value={1}>Normal</option><option value={1.2}>Faster</option></select></label>}</div>{speech.supported===false&&<p className="fc-audio-status">Read aloud isn’t available in this browser. Try a browser with text-to-speech support.</p>}{speech.error&&<p className="fc-alert" role="alert">{speech.error}</p>}
+ </>}
+ <FlashcardTest cards={filtered} visible={mode==='test'} onMark={mark} onReview={review}/>
+ <p className="fc-muted mt-5">{saveNotice||'Know it and starred progress are saved for your account on this browser. Flashcard practice does not change exam scores.'}</p>
+ </>}
  </div>;
 }
