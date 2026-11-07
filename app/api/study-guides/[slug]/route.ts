@@ -16,7 +16,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{slug:str
   // Filename comes exclusively from the bundled allowlist, never from a request path.
   const file=await readFile(path.join(process.cwd(),'content','study-guides',guide.filename));
   const disposition=request.nextUrl.searchParams.get('download')==='1'?'attachment':'inline';
-  return new NextResponse(new Uint8Array(file),{headers:{'Content-Type':'application/pdf','Content-Disposition':`${disposition}; filename="${guide.filename}"`,'Content-Length':String(file.length),'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
+  return new NextResponse(new Uint8Array(file),{headers:{'Content-Type':'application/pdf','Content-Disposition':`${disposition}; filename="${guide.download_filename}"`,'Content-Length':String(file.length),'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
  }catch{
   return NextResponse.json({error:'This study guide is temporarily unavailable. Please try again.'},{status:503,headers:{'Cache-Control':'private, no-store'}});
  }
