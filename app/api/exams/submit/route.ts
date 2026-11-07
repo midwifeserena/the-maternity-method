@@ -1,3 +1,4 @@
+import {summarizeExamTelemetry} from '@/lib/exam-analytics.mjs';
 import {scoreExamSnapshot} from '@/lib/case-exam.mjs';
 import {NextRequest,NextResponse} from 'next/server';
 import {createClient} from '@/lib/supabase/server';
@@ -29,7 +30,14 @@ export async function POST(request:NextRequest){
   let entries;
   try{entries=snapshots.data.map(row=>({question_id:row.question_id,response:body.answers[row.question_id]??null,...scoreExamSnapshot(row.question_snapshot,row.solution_snapshot,body.answers[row.question_id])}))}
   catch{return NextResponse.json({error:'The saved answer keys could not be scored. Your test has not been submitted.'},{status:500})}
-  const {data,error}=await admin().rpc('complete_exam_review_attempt',{p_attempt_id:attemptId,p_user_id:user.id,p_responses:entries,p_duration_seconds:duration});
+  const args={p_attempt_id:attemptId,p_user_id:user.id,p_responses:entries,p_duration_seconds:duration};
+  let analytics=null;
+  try{analytics=summarizeExamTelemetry(body.telemetry,snapshots.data,body.answers,duration)}catch{/* Optional analytics cannot interrupt grading. */}
+  const service=admin();
+  let saved=analytics?await service.rpc('complete_exam_with_analytics',{...args,p_analytics:analytics}):await service.rpc('complete_exam_review_attempt',args);
+  // Missing optional setup must never prevent existing exam submission.
+  if(analytics&&missingReviewFunction(saved.error))saved=await service.rpc('complete_exam_review_attempt',args);
+  const {data,error}=saved;
   if(error)return NextResponse.json({error:'Could not save the complete exam. Your answers are still available; please retry.'},{status:500});
   return NextResponse.json({...data,reviewSnapshotAvailable:true},{headers:{'Cache-Control':'no-store'}});
  }

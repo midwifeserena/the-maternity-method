@@ -1,3 +1,4 @@
+import * as examAnalytics from '../lib/exam-analytics.mjs';
 import * as caseExam from '../lib/case-exam.mjs';
 import * as legacyCaseScoring from '../lib/ngn-case-scoring.mjs';
 import {randomUUID} from 'node:crypto';
@@ -15,10 +16,11 @@ import * as matrixAuthoring from '../lib/matrix-authoring.mjs';
 const owner='10000000-0000-0000-0000-000000000001',other='10000000-0000-0000-0000-000000000002',id='30000000-0000-0000-0000-000000000001',qid='20000000-0000-0000-0000-000000000001';
 const original={id:qid,type:'single',category:'Antepartum',stem:'Original archived question',options:[{id:'a',label:'Original A'},{id:'b',label:'B'}],matrix_rows:[]};
 const attempt={id,user_id:owner,mode:'study',earned:0,possible:0,question_count:1,snapshot_stage:'start',completed_at:null};
-function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false,administrator=false,libraryError=null,legacyColumns=null,adminUnavailable=false,ngnCases=[],ngnItems=[],ngnAnswers=[],transferError=null,mixedReady=true,caseResponses=[]}={}){
+function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false,administrator=false,libraryError=null,legacyColumns=null,adminUnavailable=false,ngnCases=[],ngnItems=[],ngnAnswers=[],transferError=null,mixedReady=true,caseResponses=[],analyticsReady=false}={}){
  const calls=[],writes=[];
  function client(privileged=false){return {storage:{from(){return {createSignedUrls:async paths=>({data:paths.map(path=>({path,signedUrl:'https://example.test/signed/'+path})),error:null}),createSignedUrl:async path=>({data:{signedUrl:'https://example.test/signed/'+path},error:null}),upload:async(path,bytes,options)=>{writes.push({upload:path,size:bytes.length,options});return {data:{path},error:null}}}}},auth:{getUser:async()=>({data:{user:user?{id:user}:null}})},rpc:async(name,args)=>{
   calls.push({rpc:name,privileged,args});
+  if(name==='complete_exam_with_analytics'){if(!analyticsReady)return {data:null,error:{code:'PGRST202'}};assert(privileged);writes.push(args);return {data:{attemptId:id,earned:args.p_responses.reduce((n,r)=>n+r.earned,0),possible:args.p_responses.reduce((n,r)=>n+r.possible,0)},error:null};}
   if(name==='mixed_exam_session_version')return mixedReady?{data:1,error:null}:{data:null,error:{code:'PGRST202'}};
   if(name==='start_mixed_exam_attempt'){assert(privileged);writes.push(args);snapshots.splice(0,snapshots.length,...args.p_items.map((item,n)=>({...item,attempt_id:id,position:n+1})));Object.assign(attempts[0],{user_id:args.p_user_id,mode:args.p_mode,question_count:args.p_items.length,completed_at:null});return {data:{attemptId:id,questions:args.p_items.map(item=>item.question_snapshot)},error:null};}
   if(name==='transfer_standalone_ngn'){assert(privileged);if(transferError)return {data:null,error:transferError};writes.push(args);return {data:{ids:args.p_questions.map(d=>d.question.id)},error:null}}
@@ -39,6 +41,7 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
  function load(path){if(cache.has(path))return cache.get(path);const js=ts.transpileModule(readFileSync(new URL('../'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const compiled={exports:{}};cache.set(path,compiled.exports);new Function('require','exports','module',js)(name=>{
    if(name==='node:crypto')return {randomUUID};
    if(name==='@/lib/case-exam.mjs')return caseExam;
+   if(name==='@/lib/exam-analytics.mjs')return examAnalytics;
    if(name==='@/lib/ngn-case-scoring.mjs')return legacyCaseScoring;
    if(name==='next/server')return {NextResponse:{json:(data,options)=>Response.json(data,options)}};
    if(name==='@/lib/supabase/server')return {createClient:async()=>db};
@@ -287,4 +290,8 @@ test('exam APIs accept 150 and reject 151 before database writes',async()=>{
  const reject=harness();for(const route of ['start','submit']){response=await reject.load(`app/api/exams/${route}/route.ts`).POST(post('',{questionIds:questions.map(q=>q.id),mode:'study',answers:{}}));assert.equal(response.status,400);}assert.equal(reject.calls.length,0);
  const snapshots=questions.slice(0,150).map((q,n)=>({attempt_id:id,question_id:q.id,position:n+1,question_snapshot:q,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}));const submit=harness({attempts:[{...attempt,question_count:150}],snapshots});
  response=await submit.load('app/api/exams/submit/route.ts').POST(post('',{attemptId:id,questionIds:questions.slice(0,150).map(q=>q.id),mode:'study',answers:Object.fromEntries(questions.slice(0,150).map(q=>[q.id,'a']))}));assert.equal(response.status,200);assert.equal((await response.json()).earned,150);assert.equal(submit.writes[0].p_responses.length,150);
+});
+
+test('optional analytics preserves submission and falls back only when setup is missing',async()=>{
+ for(const ready of [false,true]){const h=harness({analyticsReady:ready});const response=await h.load('app/api/exams/submit/route.ts').POST(post('',{...payload,telemetry:{version:1,firstAnswers:{[qid]:'b'},milliseconds:{[qid]:20000}}}));assert.equal(response.status,200);assert.equal((await response.json()).earned,1);const wrapper=h.calls.find(c=>c.rpc==='complete_exam_with_analytics');assert(wrapper);assert.equal(wrapper.args.p_analytics.changes.incorrectToCorrect,1);assert.equal(h.calls.some(c=>c.rpc==='complete_exam_review_attempt'),!ready);assert.equal(h.writes.length,1);}
 });

@@ -27,6 +27,8 @@ export function Exam({category='All',initialMode='study',selectedIds,caseIds,onE
  const mode=initialMode,withCases=Boolean(caseIds?.length);
  const shell=useRef<HTMLDialogElement>(null),popup=useRef<HTMLDialogElement>(null),stem=useRef<HTMLHeadingElement>(null);
  const clock=useRef({milliseconds:0,started:null as number|null});
+ const telemetry=useRef({milliseconds:{} as Record<string,number>,firstAnswers:{} as Record<string,string>});
+ const flushQuestionTime=useRef<()=>void>(()=>{});
  const submitting=useRef(false),autoSubmitted=useRef(false);
  const [phase,setPhase]=useState<'loading'|'active'|'error'|'submitting'|'complete'>('loading');
  const [items,setItems]=useState<Question[]>([]),[index,setIndex]=useState(0);
@@ -41,7 +43,7 @@ export function Exam({category='All',initialMode='study',selectedIds,caseIds,onE
  const remaining=Math.max(0,DURATION-elapsed),expired=mode==='test'&&remaining===0;
  const question=items[index],answer=question?answers[question.id]:undefined,review=question?feedback[question.id]:undefined;
  const annotations=useExamAnnotations(shell,question?.id??'',tab);
- const choiceEvents=useChoiceStrikeout<Answer|undefined>(answer,value=>{if(value!==undefined)choose(value);else if(question)setAnswers(old=>{const next={...old};delete next[question.id];return next;});},id=>{if(!question)return;setStrikes(old=>({...old,[question.id]:(old[question.id]??[]).includes(id)?old[question.id].filter(x=>x!==id):[...(old[question.id]??[]),id]}));},question?.type==='single'&&!review&&!checking&&phase==='active'&&!paused);
+ const choiceEvents=useChoiceStrikeout<Answer|undefined>(answer,value=>{if(value!==undefined)choose(value);else if(question){delete telemetry.current.firstAnswers[question.id];setAnswers(old=>{const next={...old};delete next[question.id];return next;});}},id=>{if(!question)return;setStrikes(old=>({...old,[question.id]:(old[question.id]??[]).includes(id)?old[question.id].filter(x=>x!==id):[...(old[question.id]??[]),id]}));},question?.type==='single'&&!review&&!checking&&phase==='active'&&!paused);
  const answered=items.filter(item=>isQuestionAnswered(item,answers[item.id])).length;
  const exit=useCallback(()=>{if(onExit)onExit();else router.push('/question-bank')},[onExit,router]);
 
@@ -61,6 +63,7 @@ export function Exam({category='All',initialMode='study',selectedIds,caseIds,onE
  useEffect(()=>{
   const controller=new AbortController();
   setPhase('loading');setAttemptId(null);setMessage('');setItems([]);setIndex(0);setAnswers({});setFeedback({});setResult(null);setFlags([]);setStrikes({});setHighlights([]);setPaused(false);setElapsed(0);setPanel(null);
+  telemetry.current={milliseconds:{},firstAnswers:{}};
   clock.current={milliseconds:0,started:null};autoSubmitted.current=false;submitting.current=false;
   (async()=>{
    try{
@@ -92,14 +95,23 @@ export function Exam({category='All',initialMode='study',selectedIds,caseIds,onE
    if(clock.current===activeClock)setElapsed(Math.floor(activeClock.milliseconds/1000));
   };
  },[phase,paused,items.length]);
+ useEffect(()=>{
+  if(phase!=='active'||paused||!question||review)return;
+  const id=question.id,record=telemetry.current;let began:number|null=null;
+  const flush=()=>{if(began!==null){record.milliseconds[id]=(record.milliseconds[id]??0)+Math.max(0,performance.now()-began);began=null;}};
+  const visibility=()=>{flush();if(!document.hidden){record.milliseconds[id]??=0;began=performance.now();}};
+  visibility();flushQuestionTime.current=flush;document.addEventListener('visibilitychange',visibility);
+  return()=>{flush();document.removeEventListener('visibilitychange',visibility);if(flushQuestionTime.current===flush)flushQuestionTime.current=()=>{};};
+ },[question,phase,paused,review]);
  const finish=useCallback(async()=>{
   if(submitting.current||result||!items.length)return;
+  flushQuestionTime.current();
   submitting.current=true;setPhase('submitting');setPanel(null);setMessage('');
   const activeClock=clock.current;
   const activeSeconds=Math.floor((activeClock.milliseconds+(activeClock.started===null?0:Math.max(0,performance.now()-activeClock.started)))/1000);
   const duration=mode==='test'?Math.min(DURATION,activeSeconds):activeSeconds;
   try{
-   const response=await fetch('/api/exams/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,questionIds:items.map(item=>item.id),answers,durationSeconds:duration,attemptId:attemptId??undefined})});
+   const response=await fetch('/api/exams/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,questionIds:items.map(item=>item.id),answers,telemetry:{version:1,...telemetry.current},durationSeconds:duration,attemptId:attemptId??undefined})});
    const data=await response.json();if(!response.ok)throw Error(data.error||'Could not save your test.');
    setResult(data);setPhase('complete');
   }catch(error){setMessage(error instanceof Error?error.message:'Could not save your test. Your responses are still here; please try again.');setPaused(true);setPhase('active')}
@@ -108,7 +120,10 @@ export function Exam({category='All',initialMode='study',selectedIds,caseIds,onE
  useEffect(()=>{if(expired&&phase==='active'&&!autoSubmitted.current){autoSubmitted.current=true;setPaused(true);void finish()}},[expired,phase,finish]);
 
  function move(next:number){setIndex(next);setTab('');setPanel(null);setMessage('');requestAnimationFrame(()=>stem.current?.focus())}
- function choose(value:Answer){if(question&&!review&&!checking&&phase==='active'&&!paused)setAnswers(current=>({...current,[question.id]:value}))}
+ function choose(value:Answer){if(question&&!review&&!checking&&phase==='active'&&!paused){
+  if(question.type==='single'&&!question.ngn_format&&typeof value==='string'&&question.options.some(o=>o.id===value)&&telemetry.current.firstAnswers[question.id]===undefined)telemetry.current.firstAnswers[question.id]=value;
+  setAnswers(current=>({...current,[question.id]:value}));
+ }}
  async function check(){
   if(!question||checking||!isQuestionAnswered(question,answer))return;
   setChecking(true);setMessage('');
