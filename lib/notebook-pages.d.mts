@@ -4,3 +4,5 @@ export function makeBlankPage(reference?:any):any;
 export function insertNotebookPages(content:any,index:number,pages:any[]):any;
 export function reorderNotebookPage(content:any,from:number,to:number):any;
 export function pdfPageDescriptor(assetId:string,sourcePage:number,width:number,height:number,name?:string):any;
+
+export function strokeTouchesEraser(stroke:any,from:number[],to:number[],radius:number):boolean;
