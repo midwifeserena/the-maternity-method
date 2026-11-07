@@ -14,7 +14,7 @@ export async function POST(request:NextRequest){
   return NextResponse.json({...started.data,reviewSnapshotAvailable:true},{headers:{'Cache-Control':'no-store'}});
  }
 
- if(!Array.isArray(ids)||!ids.length||ids.length>50||ids.some(id=>!validExamId(id))||new Set(ids).size!==ids.length||!['study','test'].includes(body.mode))return NextResponse.json({error:'Invalid exam request'},{status:400});
+ if(!Array.isArray(ids)||!ids.length||ids.length>150||ids.some(id=>!validExamId(id))||new Set(ids).size!==ids.length||!['study','test'].includes(body.mode))return NextResponse.json({error:'Invalid exam request'},{status:400});
  const result=await startReviewAttempt(db,ids,body.mode);
  if(!result.error)return NextResponse.json({...result.data,reviewSnapshotAvailable:true},{headers:{'Cache-Control':'no-store'}});
  if(!missingReviewFunction(result.error))return NextResponse.json({error:'This test could not be prepared. One or more questions may no longer be available.'},{status:400});

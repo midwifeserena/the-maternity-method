@@ -280,3 +280,11 @@ test('completed mixed history and review include both response stores with origi
  const history=await (await h.load('app/api/exams/history/route.ts').GET({nextUrl:new URL('https://example.test?offset=0')})).json();assert.equal(history.attempts[0].recordedCount,7);assert.equal(history.attempts[0].correctCount,7);
  const review=await (await reviewRequest(h)).json();assert.equal(review.items.length,7);assert.equal(review.items[1].question.case_context.case_id,caseId);assert.equal(review.items[1].rationale,'Case reason');assert.equal(review.items[1].response,'o1');
 });
+
+test('exam APIs accept 150 and reject 151 before database writes',async()=>{
+ const questions=Array.from({length:151},(_,n)=>({...original,id:`22000000-0000-0000-0000-${String(n).padStart(12,'0')}`}));
+ const h=harness();let response=await h.load('app/api/exams/start/route.ts').POST(post('',{questionIds:questions.slice(0,150).map(q=>q.id),mode:'study'}));assert.equal(response.status,200);assert.equal(h.calls.find(c=>c.rpc==='start_exam_review_attempt').args.p_question_ids.length,150);
+ const reject=harness();for(const route of ['start','submit']){response=await reject.load(`app/api/exams/${route}/route.ts`).POST(post('',{questionIds:questions.map(q=>q.id),mode:'study',answers:{}}));assert.equal(response.status,400);}assert.equal(reject.calls.length,0);
+ const snapshots=questions.slice(0,150).map((q,n)=>({attempt_id:id,question_id:q.id,position:n+1,question_snapshot:q,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}));const submit=harness({attempts:[{...attempt,question_count:150}],snapshots});
+ response=await submit.load('app/api/exams/submit/route.ts').POST(post('',{attemptId:id,questionIds:questions.slice(0,150).map(q=>q.id),mode:'study',answers:Object.fromEntries(questions.slice(0,150).map(q=>[q.id,'a']))}));assert.equal(response.status,200);assert.equal((await response.json()).earned,150);assert.equal(submit.writes[0].p_responses.length,150);
+});

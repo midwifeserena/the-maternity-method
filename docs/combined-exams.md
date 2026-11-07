@@ -1,6 +1,8 @@
 # Combined standalone and NGN case exams
 
-Create Exam and Question Bank offer three content choices: Standalone Questions, NGN Case Studies, and Both Together. Students select a standalone question count and/or specific complete cases, then choose Study or Timed Test. Each case contributes all six ordered items as one contiguous block. The existing maximum of 50 questions applies to the entire exam. Both Together requires at least one standalone question and one case.
+Create Exam keeps Question Mode and Question Category. Category buttons select ordinary standalone questions, standalone NGN questions, complete NGN case studies, or any combination. All Questions selects all three; the other buttons toggle individual formats. The extra content selector and manual case picker are removed.
+
+Students enter one total question count, up to 150, and choose Study or Timed Test. The builder automatically selects complete published cases from the chosen subjects, with all six items kept together. Case-only totals must be multiples of six. Every selected format must have matching content and be represented; insufficient counts/content produce an actionable message instead of silently shortening the exam. Standard randomizes eligible pools; Custom uses their saved order. Standalone status filters retain their existing behavior; case studies currently use subject filters rather than pretending legacy case-answer history exists.
 
 ## One player, one score, saved history
 
@@ -18,9 +20,9 @@ Only published cases with exactly six published items numbered 1–6 can be sele
 
 ## PROPOSED database change — not applied to production
 
-Review supabase/migrations/202611100001_combined_exam_sessions.sql before applying it to production. It requires the existing exam-review and NGN/question-format setup. A preflight check explains missing core prerequisites.
+Review supabase/migrations/202611100001_combined_exam_sessions.sql and then supabase/migrations/202611110001_exam_limit_150.sql before applying them to production. It requires the existing exam-review and NGN/question-format setup. A preflight check explains missing core prerequisites.
 
-The migration:
+The combined-session migration:
 
 1. Adds source_kind, source_id, and case_id metadata to exam_review_items. Existing snapshots default to ordinary questions.
 2. Adds exam_case_responses with owner-only completed-session reads, read-only student access, and a foreign key to its archived item.
@@ -28,7 +30,9 @@ The migration:
 4. Extends the existing complete_exam_review_attempt function, with the same signature and service-only permission, to save standalone and case responses atomically into their respective tables.
 5. Adds a private version marker used by the authenticated capabilities endpoint.
 
-It does not import/publish questions or cases, alter existing answers, change historical scores, or backfill imaginary NGN history. Past NGN practice that did not save responses cannot be reconstructed.
+The 150-question upgrade expands the snapshot-position constraint and the standalone/mixed start RPC limits to 150. It preserves RPC authorization and snapshot contents. It requires the combined-session migration first. If that setup is already installed, apply only the new 150-question upgrade. Both migrations are transactional and can be rerun.
+
+Neither migration imports/publishes questions or cases, alters existing answers, changes historical scores, or backfills imaginary NGN history. Past NGN practice that did not save responses cannot be reconstructed.
 
 ## Safe rollout
 
@@ -44,3 +48,5 @@ Test the SQL in a staging project first, review the authenticated Vercel preview
 - Browser tests with mocked APIs run all three choices, a seven-item mixed Study exam with partial credit across case formats, one 40% score, saved history/review, case-only Timed mode, the unified direct NGN Study player, readiness fallback, and mobile layouts.
 
 For disposable SQL testing only: bootstrap auth roles, load schema.sql, load tests/sql/combined-exams-bootstrap.sql and the existing exam-review seed, apply the migration chain, then run tests/sql/combined-exams-check.sql. The new check wraps its synthetic data and edits in a rollback transaction. Never run test bootstrap/seed scripts in production.
+
+Additional verification for the category redesign: exact-size planning tests cover all seven format combinations through 150, invalid counts, missing formats, limited availability, and complete-case preservation. API tests accept 150, reject 151 before database writes, and save all 150 responses. tests/sql/exam-limit-150-check.sql verifies standalone 150, 25 complete cases, mixed 150, saved scores/responses, ownership, 151 rejection, and unchanged historical scores in the disposable database. Larger exams require the new upgrade before production use.

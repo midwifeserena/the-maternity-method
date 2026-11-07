@@ -29,10 +29,10 @@ for(const format of ['calculation','ordered','dyad-cloze','bowtie','highlight','
  const template=ngnTemplate(format),doc=caseItemDocument(record,{id:itemId,case_id:caseId,item_number:1,content:{question:template.question}},{item_id:itemId,case_id:caseId,answer:template.solution,rationale:'Reason'},snapshotId);
  const score=scoreExamSnapshot(doc.question,doc.solution,doc.solution.answer_key);assert.equal(score.earned,score.possible);assert.equal(scoreExamSnapshot(doc.question,doc.solution,null).earned,0);
 });
-test('all three selection types are valid; case blocks consume six slots and cannot exceed 50',()=>{
+test('all three selection types are valid; case blocks consume six slots and cannot exceed 150',()=>{
  assert.equal(CASE_ITEM_COUNT,6);assert(validExamSelection([qid],[],'test'));assert(validExamSelection([],[caseId],'study'));assert(validExamSelection([qid],[caseId],'test'));
  assert(!validExamSelection([],[],'study'));assert(!validExamSelection([qid,qid],[caseId],'test'));assert(!validExamSelection([qid],[caseId,caseId],'test'));assert(!validExamSelection([],[caseId],'bad'));assert(!validExamSelection(['not-a-uuid'],[caseId],'study'));
- const questions=Array.from({length:45},(_,i)=>`20000000-0000-0000-0000-${String(i).padStart(12,'0')}`);assert(!validExamSelection(questions,[caseId],'test'));assert(validExamSelection(questions.slice(0,44),[caseId],'test'));
+ const questions=Array.from({length:145},(_,i)=>`20000000-0000-0000-0000-${String(i).padStart(12,'0')}`);assert(!validExamSelection(questions,[caseId],'test'));assert(validExamSelection(questions.slice(0,144),[caseId],'test'));
 });
 test('only complete six-item cases are offered',()=>{
  const items=Array.from({length:6},(_,i)=>({case_id:caseId,item_number:i+1}));assert.equal(completeExamCases([record],items).length,1);assert.equal(completeExamCases([record],items.slice(1)).length,0);assert.equal(completeExamCases([record],[...items.slice(1),items[1]]).length,0);
