@@ -8,7 +8,7 @@ import {validExamId,ownAttempt,frozenItems,startReviewAttempt,missingReviewFunct
 export async function POST(request:NextRequest){
  const db=await createClient();const {data:{user}}=await db.auth.getUser();if(!user)return NextResponse.json({error:'Unauthorized'},{status:401});
  const body=await request.json().catch(()=>null);const ids=body?.questionIds;
- if(!Array.isArray(ids)||!ids.length||ids.length>50||ids.some(id=>!validExamId(id))||new Set(ids).size!==ids.length||!['study','test'].includes(body.mode)||typeof body.answers!=='object'||body.answers===null||Array.isArray(body.answers)||(body.attemptId!=null&&!validExamId(body.attemptId)))return NextResponse.json({error:'Invalid exam payload'},{status:400});
+ if(!Array.isArray(ids)||!ids.length||ids.length>150||ids.some(id=>!validExamId(id))||new Set(ids).size!==ids.length||!['study','test'].includes(body.mode)||typeof body.answers!=='object'||body.answers===null||Array.isArray(body.answers)||(body.attemptId!=null&&!validExamId(body.attemptId)))return NextResponse.json({error:'Invalid exam payload'},{status:400});
  const duration=Math.max(0,Math.min(86400,Math.trunc(Number(body.durationSeconds)||0)));
  let attemptId:string|null=body.attemptId??null;
  // Older clients can still submit. If snapshots are enabled, capture a clearly

@@ -68,13 +68,13 @@ export function Exam({category='All',initialMode='study',selectedIds,caseIds,onE
     if(!ids){
      const bank=await fetch('/api/questions?formats=extended-v1&category='+encodeURIComponent(category),{cache:'no-store',signal:controller.signal});
      const data=await bank.json();if(!bank.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not load questions.');
-     ids=(data.questions as Question[]).slice(0,50).map(item=>item.id);
+     ids=(data.questions as Question[]).slice(0,150).map(item=>item.id);
     }
     const response=await fetch('/api/exams/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionIds:ids,mode,...(withCases?{caseIds}: {})}),signal:controller.signal});
     const data=await response.json();if(controller.signal.aborted)return;
     if(!response.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not prepare your test.');
     const selected=data.questions as Question[];
-    if(!selected.length||selected.length>50||(!withCases&&selected.length!==ids.length)||(withCases&&selected.length<ids.length+(caseIds?.length??0)*6))throw Error('Some selected questions are no longer available. Return to the builder and generate another test.');
+    if(!selected.length||selected.length>150||(!withCases&&selected.length!==ids.length)||(withCases&&selected.length<ids.length+(caseIds?.length??0)*6))throw Error('Some selected questions are no longer available. Return to the builder and generate another test.');
     setAttemptId(data.attemptId??null);setReviewAvailable(Boolean(data.reviewSnapshotAvailable));
     setItems(selected);setPhase('active');
    }catch(error){if(!controller.signal.aborted){setMessage(error instanceof Error?error.message:'Could not load your test.');setPhase('error')}}
