@@ -1,4 +1,5 @@
 'use client';
+import {Exam} from './exam';
 import {ExamImages} from './exam-images';
 import {NgnExamWindow} from './ngn-exam-window';
 import {useChoiceStrikeout} from './use-choice-strikeout';
@@ -11,6 +12,7 @@ type Item={id:string;case_id:string;item_number:number;item_type:string;stem:str
 type Result={itemId:string;earned:number;possible:number;answer:Record<string,unknown>;answerText:string;rationale:string};
 type Response=Record<string,unknown>;
 const letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const noStandaloneQuestions:string[]=[];
 function ItemControl({item,value,onChange,disabled,solution,struck,onToggleStrike}:{struck:string[];onToggleStrike:(id:string)=>void;solution?:unknown;item:Item;value:Response;onChange:(next:Response)=>void;disabled:boolean}){
  const c=item.content;
  const choiceEvents=useChoiceStrikeout(value,onChange,onToggleStrike,!disabled&&item.item_type!=='Select All That Apply'&&!item.item_type.startsWith('Drag and Drop'));
@@ -45,14 +47,16 @@ function ItemControl({item,value,onChange,disabled,solution,struck,onToggleStrik
  }
  return <p className="text-sm text-red-700">Unsupported item type: {item.item_type}</p>;
 }
-export function NgnBuilder(){
+export function NgnBuilder({entryPoint='library'}:{entryPoint?:'library'|'create-exam'}){
  const [cases,setCases]=useState<Case[]>([]),[items,setItems]=useState<Item[]>([]);
  const [category,setCategory]=useState('All');
+ const [unifiedReady,setUnifiedReady]=useState(false);
  const [active,setActive]=useState<Case|null>(null),[index,setIndex]=useState(0),[tab,setTab]=useState('');
+ const examCaseIds=useMemo(()=>active?[active.id]:[],[active]);
  const [strikes,setStrikes]=useState<Record<string,string[]>>({});
  const [responses,setResponses]=useState<Record<string,Response>>({}),[results,setResults]=useState<Result[]|null>(null),[score,setScore]=useState('');
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
- useEffect(()=>{fetch('/api/ngn?formats=extended-v1',{cache:'no-store'}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);setCases(data.cases);setItems(data.items)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[]);
+ useEffect(()=>{let present=true;Promise.all([fetch('/api/ngn?formats=extended-v1',{cache:'no-store'}).then(async r=>{const data=await r.json();if(!r.ok)throw Error(data.error);return data}),fetch('/api/exams/capabilities',{cache:'no-store'}).then(async r=>r.ok?(await r.json()).caseExams===true:false).catch(()=>false)]).then(([data,ready])=>{if(present){setCases(data.cases);setItems(data.items);setUnifiedReady(ready)}}).catch(e=>{if(present)setError(e.message)}).finally(()=>{if(present)setLoading(false)});return()=>{present=false};},[]);
  const filtered=useMemo(()=>cases.filter(c=>category==='All'||c.topic===category),[cases,category]);
  const current=useMemo(()=>active?items.filter(i=>i.case_id===active.id).sort((a,b)=>a.item_number-b.item_number):[],[active,items]);
  const item=current[index];
@@ -61,8 +65,9 @@ export function NgnBuilder(){
  async function submit(){if(!active)return;setBusy(true);setError('');try{const r=await fetch('/api/ngn?formats=extended-v1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseId:active.id,responses})});const data=await r.json();if(!r.ok)throw Error(data.error);setResults(data.results);setScore(data.earned+'/'+data.possible);setIndex(0)}catch(e){setError(e instanceof Error?e.message:'Submission failed')}finally{setBusy(false)}}
  const shell='rounded-2xl border border-rose/30 bg-[#FFF9F2] p-5 md:p-7';
  if(loading)return <div className={shell}>Loading your NGN case studies…</div>;
+ if(active&&unifiedReady&&current.length===6)return <Exam selectedIds={noStandaloneQuestions} caseIds={examCaseIds} initialMode="study" onExit={back}/>;
  if(!active)return <div className="space-y-5 max-w-6xl">
-  <div className={shell}><div className="flex justify-between gap-4 flex-wrap"><div><h2 className="text-2xl">Build an NGN case-study session</h2><p className="text-sm mt-2 text-espresso/65">Select a maternity topic and open a published clinical case.</p></div><span className="pill">{cases.length} available cases</span></div><div className="flex flex-wrap gap-2 mt-6">{['All','Antepartum','Intrapartum','Postpartum','Newborn'].map(x=><button key={x} onClick={()=>setCategory(x)} className={'rounded-full px-4 py-2 text-sm font-semibold '+(category===x?'bg-mauve text-white':'bg-oatmeal text-mauve')}>{x}</button>)}</div></div>
+  <div className={shell}><div className="flex justify-between gap-4 flex-wrap"><div><h2 className="text-2xl">{entryPoint==='create-exam'?'Choose an NGN case study':'Build an NGN case-study session'}</h2><p className="text-sm mt-2 text-espresso/65">Select a maternity topic and open a published clinical case.</p></div><span className="pill">{cases.length} available cases</span></div><div className="flex flex-wrap gap-2 mt-6">{['All','Antepartum','Intrapartum','Postpartum','Newborn'].map(x=><button key={x} onClick={()=>setCategory(x)} className={'rounded-full px-4 py-2 text-sm font-semibold '+(category===x?'bg-mauve text-white':'bg-oatmeal text-mauve')}>{x}</button>)}</div></div>
   {error&&<p role="alert" className="text-red-700">{error}</p>}
   {!filtered.length&&<div className={shell}><h3 className="text-xl">No published case studies yet</h3><p className="text-sm mt-2 text-espresso/65">Your imported cases are saved as drafts. They will appear here once their clinical review is complete and both cases and items are published.</p></div>}
   <div className="grid md:grid-cols-2 gap-4">{filtered.map(c=><article key={c.id} className={shell}><span className="pill">{c.topic} · Case {c.case_number}</span><h3 className="text-2xl mt-4">{c.topic} Case Study {c.case_number}</h3><p className="text-sm text-espresso/65 mt-2">{c.intro}</p><div className="mt-5 flex items-center justify-between"><span className="text-xs text-espresso/60">{items.filter(i=>i.case_id===c.id).length} NGN items</span><button onClick={()=>start(c)} className="btn-primary">Start Case →</button></div></article>)}</div>

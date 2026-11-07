@@ -1,6 +1,7 @@
 'use client';
+import {ExamWindow,ExamHeader,ExamFooter} from './exam-window';
 import {useEffect,useRef,useState,type ReactNode,type CSSProperties} from 'react';
-import {Bookmark,ChevronLeft,ChevronRight,Clock,Highlighter,ListChecks,LogOut,Settings} from 'lucide-react';
+import {Bookmark,ChevronLeft,ChevronRight,Highlighter,ListChecks,LogOut,Settings} from 'lucide-react';
 import {formatExamTime} from '@/lib/exam-tools.mjs';
 import {useExamAnnotations} from './use-exam-annotations';
 import './exam.css';
@@ -14,8 +15,8 @@ export function NgnExamWindow({caseLabel,itemId,index,count,chart,question,score
  useEffect(()=>{if(review)return;const started=Date.now();const timer=setInterval(()=>setElapsed(Math.floor((Date.now()-started)/1000)),1000);return()=>clearInterval(timer);},[review]);
  useEffect(()=>{questionPane.current?.scrollTo(0,0);chartPane.current?.scrollTo(0,0);questionPane.current?.focus();},[itemId]);
  function changeTheme(value:'light'|'dark'){setTheme(value);try{localStorage.setItem('maternity-method-exam-theme',value);}catch{}}
- return <dialog ref={shell} className="exam-shell ngn-exam-shell" data-theme={theme} style={{'--exam-font-size':'16px'} as CSSProperties} aria-label="NGN case-study exam" onCancel={event=>{event.preventDefault();setPanel('end');}} onContextMenu={annotations.onContextMenu} onMouseUp={annotations.rememberSelection} onKeyUp={annotations.rememberSelection}>
-  <header className="exam-topbar"><span>{review?`NGN case review · Read-only · Score ${score}`:'NGN case study · Untimed'}</span><span className="exam-brand">The Maternity Method</span><div className="exam-meta"><span className="exam-clock"><Clock size={17}/>{formatExamTime(elapsed)}</span><span>Item {index+1} of {count}</span></div></header>
+ return <ExamWindow ref={shell} className="ngn-exam-shell" data-theme={theme} style={{'--exam-font-size':'16px'} as CSSProperties} aria-label="NGN case-study exam" onCancel={event=>{event.preventDefault();setPanel('end');}} onContextMenu={annotations.onContextMenu} onMouseUp={annotations.rememberSelection} onKeyUp={annotations.rememberSelection}>
+  <ExamHeader label={review?`NGN case review · Read-only · Score ${score}`:'NGN case study (Untimed)'} time={formatExamTime(elapsed)} timeLabel="Elapsed case-study time" position={`Item ${index+1} of ${count}`}/>
   <div className="exam-toolbar"><button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>annotations.highlightSelection()}><Highlighter size={17}/>Highlight selected text</button><button type="button" onClick={annotations.clearHighlights}>Clear highlights</button><span className="exam-toolbar-spacer"/><button type="button" onClick={()=>setPanel(panel==='settings'?null:'settings')} aria-expanded={panel==='settings'}><Settings size={17}/>Settings</button><button type="button" aria-pressed={flags.includes(itemId)} onClick={()=>setFlags(old=>old.includes(itemId)?old.filter(id=>id!==itemId):[...old,itemId])}><Bookmark size={17}/>Mark for review</button></div>
   <p className="ngn-exam-help">Select text and right-click to highlight, or use Highlight selected text. Double-click a multiple-choice answer to cross it out; use its Cross out button on touch screens.</p>
   <span className="exam-sr-only" role="status">{annotations.notice}</span>
@@ -24,6 +25,6 @@ export function NgnExamWindow({caseLabel,itemId,index,count,chart,question,score
    <button type="button" onClick={()=>setPanel(null)}>Close panel</button>
   </section>}
   <div className="ngn-exam-panes"><aside ref={chartPane} className="ngn-exam-chart" aria-label="Patient chart"><p className="ngn-case-label">{caseLabel} · Item {index+1} of {count}</p>{chart}</aside><section ref={questionPane} className="ngn-exam-question" aria-label={`Question ${index+1}`} tabIndex={-1}>{question}</section></div>
-  <footer className="exam-footer"><div className="exam-footer-group"><button type="button" disabled={busy} onClick={()=>setPanel('end')}><LogOut size={18}/>{review?'Close':'End'}</button></div><div className="exam-footer-group"><button type="button" disabled={index===0||busy} onClick={onPrevious}><ChevronLeft size={20}/>Previous</button><button type="button" onClick={()=>setPanel(panel==='navigator'?null:'navigator')} aria-expanded={panel==='navigator'}><ListChecks size={20}/>Navigator</button>{index<count-1?<button type="button" disabled={busy} onClick={onNext}>Next<ChevronRight size={20}/></button>:review?<button type="button" onClick={onExit}>Finish review</button>:<button type="button" disabled={busy||!answered.every(Boolean)} onClick={onSubmit}>{busy?'Submitting…':'Submit case'}</button>}</div></footer>
- </dialog>;
+  <ExamFooter><div className="exam-footer-group"><button type="button" disabled={busy} onClick={()=>setPanel('end')}><LogOut size={18}/>{review?'Close':'End'}</button></div><div className="exam-footer-group"><button type="button" disabled={index===0||busy} onClick={onPrevious}><ChevronLeft size={20}/>Previous</button><button type="button" onClick={()=>setPanel(panel==='navigator'?null:'navigator')} aria-expanded={panel==='navigator'}><ListChecks size={20}/>Navigator</button>{index<count-1?<button type="button" disabled={busy} onClick={onNext}>Next<ChevronRight size={20}/></button>:review?<button type="button" onClick={onExit}>Finish review</button>:<button type="button" disabled={busy||!answered.every(Boolean)} onClick={onSubmit}>{busy?'Submitting…':'Submit case'}</button>}</div></ExamFooter>
+ </ExamWindow>;
 }

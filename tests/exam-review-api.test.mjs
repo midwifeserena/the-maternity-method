@@ -1,3 +1,6 @@
+import * as caseExam from '../lib/case-exam.mjs';
+import * as legacyCaseScoring from '../lib/ngn-case-scoring.mjs';
+import {randomUUID} from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -12,10 +15,12 @@ import * as matrixAuthoring from '../lib/matrix-authoring.mjs';
 const owner='10000000-0000-0000-0000-000000000001',other='10000000-0000-0000-0000-000000000002',id='30000000-0000-0000-0000-000000000001',qid='20000000-0000-0000-0000-000000000001';
 const original={id:qid,type:'single',category:'Antepartum',stem:'Original archived question',options:[{id:'a',label:'Original A'},{id:'b',label:'B'}],matrix_rows:[]};
 const attempt={id,user_id:owner,mode:'study',earned:0,possible:0,question_count:1,snapshot_stage:'start',completed_at:null};
-function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false,administrator=false,libraryError=null,legacyColumns=null,adminUnavailable=false,ngnCases=[],ngnItems=[],ngnAnswers=[],transferError=null}={}){
+function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{attempt_id:id,question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}}],missing=false,historyRows=null,liveQuestions=[{...original,stem:'CURRENT EDIT',published:false}],liveSolutions=[{question_id:qid,answer_key:'b',rationale:'Current bank rationale'}],failTable=null,missingSnapshots=false,administrator=false,libraryError=null,legacyColumns=null,adminUnavailable=false,ngnCases=[],ngnItems=[],ngnAnswers=[],transferError=null,mixedReady=true,caseResponses=[]}={}){
  const calls=[],writes=[];
  function client(privileged=false){return {storage:{from(){return {createSignedUrls:async paths=>({data:paths.map(path=>({path,signedUrl:'https://example.test/signed/'+path})),error:null}),createSignedUrl:async path=>({data:{signedUrl:'https://example.test/signed/'+path},error:null}),upload:async(path,bytes,options)=>{writes.push({upload:path,size:bytes.length,options});return {data:{path},error:null}}}}},auth:{getUser:async()=>({data:{user:user?{id:user}:null}})},rpc:async(name,args)=>{
   calls.push({rpc:name,privileged,args});
+  if(name==='mixed_exam_session_version')return mixedReady?{data:1,error:null}:{data:null,error:{code:'PGRST202'}};
+  if(name==='start_mixed_exam_attempt'){assert(privileged);writes.push(args);snapshots.splice(0,snapshots.length,...args.p_items.map((item,n)=>({...item,attempt_id:id,position:n+1})));Object.assign(attempts[0],{user_id:args.p_user_id,mode:args.p_mode,question_count:args.p_items.length,completed_at:null});return {data:{attemptId:id,questions:args.p_items.map(item=>item.question_snapshot)},error:null};}
   if(name==='transfer_standalone_ngn'){assert(privileged);if(transferError)return {data:null,error:transferError};writes.push(args);return {data:{ids:args.p_questions.map(d=>d.question.id)},error:null}}
   if(name==='manage_question_studio'){assert(privileged);writes.push(args);return {data:{id:args.p_id,revision:args.p_expected_revision+1,published:args.p_action==='publish',archived_at:args.p_action==='archive'?'2026-11-04':null},error:null}}
   if(name==='admin_question_library'&&libraryError)return {data:null,error:libraryError};
@@ -27,11 +32,14 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
   assert(privileged);assert.equal(name,'complete_exam_review_attempt');writes.push(args);const row=attempts.find(a=>a.id===args.p_attempt_id);row.completed_at='2026-11-04';row.earned=args.p_responses.reduce((n,r)=>n+r.earned,0);row.possible=args.p_responses.reduce((n,r)=>n+r.possible,0);return {data:{attemptId:id,earned:row.earned,possible:row.possible},error:null};
  },from(table){const call={table,privileged};calls.push(call);let filters=[],start=0,end=Infinity,single=false,columns='*',selectOptions={};
   const chain={select(value,options={}){columns=value;selectOptions=options;call.columns=value;return chain},eq(key,value){filters.push(r=>r[key]===value);return chain},in(key,value){filters.push(r=>value.includes(r[key]));return chain},not(key,_op,value){filters.push(r=>r[key]!==value);return chain},order(){return chain},limit(){return chain},ilike(){return chain},range(a,b){start=a;end=b;return chain},maybeSingle(){single=true;return chain},single(){single=true;return chain},
-   then(resolve,reject){if(table==='questions'&&legacyColumns&&columns!=='*'&&columns.split(',').some(column=>!legacyColumns.includes(column)))return Promise.resolve({data:null,error:{code:'42703'}}).then(resolve,reject);if(table===failTable)return Promise.resolve({data:null,error:{code:'XX000'}}).then(resolve,reject);if(table==='exam_review_items'&&missingSnapshots)return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject);let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_review_items'?snapshots:table==='questions'?liveQuestions:table==='question_solutions'?liveSolutions:table==='ngn_cases'?ngnCases:table==='ngn_items'?ngnItems:table==='ngn_answers'?ngnAnswers:[];rows=rows.filter(row=>filters.every(match=>match(row)));const count=rows.length;rows=rows.slice(start,end+1);if(columns!=='*')rows=rows.map(row=>Object.fromEntries(columns.split(',').map(column=>[column,row[column]])));return Promise.resolve({data:selectOptions.head?null:single?rows[0]??null:rows,error:null,count:selectOptions.count?count:null}).then(resolve,reject)}
+   then(resolve,reject){if(table==='questions'&&legacyColumns&&columns!=='*'&&columns.split(',').some(column=>!legacyColumns.includes(column)))return Promise.resolve({data:null,error:{code:'42703'}}).then(resolve,reject);if(table===failTable)return Promise.resolve({data:null,error:{code:'XX000'}}).then(resolve,reject);if(table==='exam_review_items'&&missingSnapshots)return Promise.resolve({data:null,error:{code:'PGRST205'}}).then(resolve,reject);let rows=table==='exam_attempts'?historyRows??attempts:table==='exam_responses'?responses:table==='exam_case_responses'?caseResponses:table==='exam_review_items'?snapshots:table==='questions'?liveQuestions:table==='question_solutions'?liveSolutions:table==='ngn_cases'?ngnCases:table==='ngn_items'?ngnItems:table==='ngn_answers'?ngnAnswers:[];rows=rows.filter(row=>filters.every(match=>match(row)));const count=rows.length;rows=rows.slice(start,end+1);if(columns!=='*')rows=rows.map(row=>Object.fromEntries(columns.split(',').map(column=>[column,row[column]])));return Promise.resolve({data:selectOptions.head?null:single?rows[0]??null:rows,error:null,count:selectOptions.count?count:null}).then(resolve,reject)}
   };return chain;
  }}}
  const db=client(),service=client(true),cache=new Map();
- function load(path){if(cache.has(path))return cache.get(path);const js=ts.transpileModule(readFileSync(new URL('../'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const module={exports:{}};cache.set(path,module.exports);new Function('require','exports','module',js)(name=>{
+ function load(path){if(cache.has(path))return cache.get(path);const js=ts.transpileModule(readFileSync(new URL('../'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const compiled={exports:{}};cache.set(path,compiled.exports);new Function('require','exports','module',js)(name=>{
+   if(name==='node:crypto')return {randomUUID};
+   if(name==='@/lib/case-exam.mjs')return caseExam;
+   if(name==='@/lib/ngn-case-scoring.mjs')return legacyCaseScoring;
    if(name==='next/server')return {NextResponse:{json:(data,options)=>Response.json(data,options)}};
    if(name==='@/lib/supabase/server')return {createClient:async()=>db};
    if(name==='@/lib/supabase/admin')return {admin:()=>{if(adminUnavailable)throw Error('Missing server credentials');return service}};
@@ -48,7 +56,7 @@ function harness({user=owner,attempts=[{...attempt}],responses=[],snapshots=[{at
    if(name==='@/lib/question-media-server')return load('lib/question-media-server.ts');
    if(name==='@/lib/exam-review-server')return load('lib/exam-review-server.ts');
    throw Error('Unexpected import '+name);
-  },module.exports,module);return module.exports}
+  },compiled.exports,compiled);return compiled.exports}
  return {load,calls,writes,attempts,db};
 }
 const post=(path,value)=>new Request('https://example.test/'+path,{method:'POST',body:JSON.stringify(value)});
@@ -246,4 +254,29 @@ test('canonical six-case player uses private numeric/ordered/paired keys only af
 test('older question clients are not offered new formats until requesting extended capability',async()=>{
  const d=standalone.ngnTemplate('calculation');const h=harness({liveQuestions:[{...original,published:true},{...d.question,id:'numeric',published:true}]});const get=url=>h.load('app/api/questions/route.ts').GET({nextUrl:new URL(url)});assert.equal((await (await get('https://example.test?category=All')).json()).questions.length,1);assert.equal((await (await get('https://example.test?category=All&formats=extended-v1')).json()).questions.length,2);
  const c=harness({ngnCases:[{...sourceCase,published:true}],ngnItems:[{...sourceItem,published:true,content:{question:d.question}}]});assert.equal((await (await c.load('app/api/ngn/route.ts').GET()).json()).cases.length,0);
+});
+
+const caseId='60000000-0000-0000-0000-000000000001';
+function caseFixtures(){const c={id:caseId,case_number:1,topic:'Antepartum',intro:'Case story',tabs:{Notes:'Case notes'},published:true};const items=Array.from({length:6},(_,n)=>({id:`70000000-0000-0000-0000-${String(n+1).padStart(12,'0')}`,case_id:caseId,item_number:n+1,item_type:'Multiple Choice',stem:'Case item '+(n+1),content:{options:['Assess','Wait']},published:true}));const keys=items.map(i=>({item_id:i.id,case_id:caseId,answer:{correct:['A']},rationale:'Case reason',answer_text:'Assess'}));return{ngnCases:[c],ngnItems:items,ngnAnswers:keys};}
+test('combined start archives one standalone plus all six ordered case items without leaking keys',async()=>{
+ const h=harness({liveQuestions:[{...original,published:true}],...caseFixtures()});const response=await h.load('app/api/exams/start/route.ts').POST(post('api/exams/start',{questionIds:[qid],caseIds:[caseId],mode:'test'}));assert.equal(response.status,200);const data=await response.json();assert.equal(data.questions.length,7);assert.equal(data.questions[0].id,qid);assert.deepEqual(data.questions.slice(1).map(q=>q.case_context.item_number),[1,2,3,4,5,6]);assert(!JSON.stringify(data).includes('answer_key'));assert(!JSON.stringify(data).includes('Case reason'));assert.equal(h.writes.length,1);
+ const answers=Object.fromEntries(data.questions.map((q,n)=>[q.id,n===0?'a':'o1']));const submitted=await h.load('app/api/exams/submit/route.ts').POST(post('api/exams/submit',{attemptId:id,questionIds:data.questions.map(q=>q.id),answers,mode:'test'}));assert.equal(submitted.status,200);const result=await submitted.json();assert.equal(result.earned,6);assert.equal(result.possible,7);
+});
+test('case-only start is supported; incomplete or unpublished cases never create an attempt',async()=>{
+ const fixtures=caseFixtures(),h=harness(fixtures);const response=await h.load('app/api/exams/start/route.ts').POST(post('api/exams/start',{questionIds:[],caseIds:[caseId],mode:'study'}));assert.equal(response.status,200);assert.equal((await response.json()).questions.length,6);
+ for(const items of [fixtures.ngnItems.slice(1),fixtures.ngnItems.map((item,n)=>n===0?{...item,published:false}:item)]){const denied=harness({...fixtures,ngnItems:items});assert.equal((await denied.load('app/api/exams/start/route.ts').POST(post('api/exams/start',{questionIds:[],caseIds:[caseId],mode:'test'}))).status,400);assert.equal(denied.writes.length,0);}
+});
+test('setup guard preserves standalone start and blocks cases until the migration is installed',async()=>{
+ const h=harness({mixedReady:false,...caseFixtures()});assert.equal((await h.load('app/api/exams/start/route.ts').POST(post('api/exams/start',{questionIds:[],caseIds:[caseId],mode:'study'}))).status,503);assert.equal(h.writes.length,0);assert.equal((await h.load('app/api/exams/start/route.ts').POST(post('api/exams/start',{questionIds:[qid],mode:'study'}))).status,200);
+});
+test('case solutions remain hidden during study mode until full exam submission',async()=>{
+ const h=harness({...caseFixtures(),attempts:[{...attempt,mode:'study'}]});const started=await h.load('app/api/exams/start/route.ts').POST(post('api/exams/start',{questionIds:[],caseIds:[caseId],mode:'study'}));const data=await started.json();const denied=await h.load('app/api/study/check/route.ts').POST(post('api/study/check',{attemptId:id,questionId:data.questions[0].id,answer:'o1'}));assert.equal(denied.status,403);assert(!(await denied.text()).includes('Case reason'));
+});
+test('completed mixed history and review include both response stores with original snapshots',async()=>{
+ const fixture=caseFixtures(),docs=fixture.ngnItems.map((item,n)=>caseExam.caseItemDocument(fixture.ngnCases[0],item,fixture.ngnAnswers[n],`80000000-0000-0000-0000-${String(n+1).padStart(12,'0')}`));
+ const saved=docs.map((d,n)=>({id:`90000000-0000-0000-0000-${String(n+1).padStart(12,'0')}`,attempt_id:id,user_id:owner,question_id:d.question.id,response:'o1',earned:1,possible:1}));
+ const snapshots=[{question_id:qid,position:1,question_snapshot:original,solution_snapshot:{answer_key:'a',rationale:'Original rationale'}},...docs.map((d,n)=>({question_id:d.question.id,position:n+2,question_snapshot:d.question,solution_snapshot:d.solution}))].map(row=>({...row,attempt_id:id}));
+ const h=harness({attempts:[{...attempt,question_count:7,earned:7,possible:7,completed_at:'2026-11-07'}],responses:[{id:qid,attempt_id:id,user_id:owner,question_id:qid,response:'a',earned:1,possible:1}],caseResponses:saved,snapshots});
+ const history=await (await h.load('app/api/exams/history/route.ts').GET({nextUrl:new URL('https://example.test?offset=0')})).json();assert.equal(history.attempts[0].recordedCount,7);assert.equal(history.attempts[0].correctCount,7);
+ const review=await (await reviewRequest(h)).json();assert.equal(review.items.length,7);assert.equal(review.items[1].question.case_context.case_id,caseId);assert.equal(review.items[1].rationale,'Case reason');assert.equal(review.items[1].response,'o1');
 });
