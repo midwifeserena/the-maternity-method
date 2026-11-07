@@ -1,3 +1,4 @@
+import {scoreExamSnapshot} from '@/lib/case-exam.mjs';
 import {educationFeedback} from '@/lib/question-media-server';
 import {NextRequest,NextResponse} from 'next/server';
 import {createClient} from '@/lib/supabase/server';
@@ -17,8 +18,9 @@ export async function POST(request:NextRequest){
   if(owned.data.completed_at)return NextResponse.json({error:'This test has already been submitted.'},{status:400});
   const snapshots=await frozenItems(body.attemptId),item=snapshots.data?.find(row=>row.question_id===body.questionId);
   if(snapshots.error||!item)return NextResponse.json({error:'Saved question unavailable'},{status:404});
+  if(item.source_kind==='ngn_case'||item.question_snapshot.case_context)return NextResponse.json({error:'Case answers are available after exam submission.'},{status:403});
   const solution=item.solution_snapshot;
-  return NextResponse.json({...scoreQuestion({...item.question_snapshot,answer_key:solution.answer_key},body.answer),rationale:solution.rationale,answer_key:solution.answer_key,...await educationFeedback(solution)},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({...scoreExamSnapshot(item.question_snapshot,solution,body.answer),rationale:solution.rationale,answer_key:solution.answer_key,...await educationFeedback(solution)},{headers:{'Cache-Control':'no-store'}});
  }
  const {data:question,error}=await db.from('questions').select('*').eq('id',body.questionId).eq('published',true).single();
  if(error||!question)return NextResponse.json({error:'Question not found'},{status:404});

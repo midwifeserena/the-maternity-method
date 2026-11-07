@@ -22,9 +22,9 @@ type Panel='settings'|'calculator'|'navigator'|'end'|null;
 const DURATION=30*60;
 const THEME_KEY='maternity-method-exam-theme';
 
-export function Exam({category='All',initialMode='study',selectedIds,onExit}:{category?:Category|'All';initialMode?:'study'|'test';selectedIds?:string[];onExit?:()=>void}){
+export function Exam({category='All',initialMode='study',selectedIds,caseIds,onExit}:{category?:Category|'All';initialMode?:'study'|'test';selectedIds?:string[];caseIds?:string[];onExit?:()=>void}){
  const router=useRouter();
- const mode=initialMode;
+ const mode=initialMode,withCases=Boolean(caseIds?.length);
  const shell=useRef<HTMLDialogElement>(null),popup=useRef<HTMLDialogElement>(null),stem=useRef<HTMLHeadingElement>(null);
  const clock=useRef({milliseconds:0,started:null as number|null});
  const submitting=useRef(false),autoSubmitted=useRef(false);
@@ -70,17 +70,17 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
      const data=await bank.json();if(!bank.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not load questions.');
      ids=(data.questions as Question[]).slice(0,50).map(item=>item.id);
     }
-    const response=await fetch('/api/exams/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionIds:ids,mode}),signal:controller.signal});
+    const response=await fetch('/api/exams/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({questionIds:ids,mode,...(withCases?{caseIds}: {})}),signal:controller.signal});
     const data=await response.json();if(controller.signal.aborted)return;
     if(!response.ok||!Array.isArray(data.questions))throw Error(data.error||'Could not prepare your test.');
     const selected=data.questions as Question[];
-    if(!selected.length||selected.length!==ids.length)throw Error('Some selected questions are no longer available. Return to the builder and generate another test.');
+    if(!selected.length||selected.length>50||(!withCases&&selected.length!==ids.length)||(withCases&&selected.length<ids.length+(caseIds?.length??0)*6))throw Error('Some selected questions are no longer available. Return to the builder and generate another test.');
     setAttemptId(data.attemptId??null);setReviewAvailable(Boolean(data.reviewSnapshotAvailable));
     setItems(selected);setPhase('active');
    }catch(error){if(!controller.signal.aborted){setMessage(error instanceof Error?error.message:'Could not load your test.');setPhase('error')}}
   })();
   return()=>controller.abort();
- },[category,selectedIds,retry,mode]);
+ },[category,selectedIds,caseIds,retry,mode,withCases]);
  useEffect(()=>{
   if(phase!=='active'||paused||!items.length)return;
   const activeClock=clock.current;activeClock.started=performance.now();
@@ -143,7 +143,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
      {chartTabs.length>0&&<aside className="exam-chart" aria-label="Patient chart"><h2>Patient chart</h2><div className="exam-chart-tabs" role="tablist" aria-label="Clinical chart sections">{chartTabs.map((title,n)=><button type="button" role="tab" id={'exam-chart-tab-'+n} aria-selected={currentTab===title} aria-controls="exam-chart-panel" key={title} onClick={()=>setTab(title)}>{title}</button>)}</div><div id="exam-chart-panel" role="tabpanel" aria-labelledby={'exam-chart-tab-'+chartTabs.indexOf(currentTab)} className="exam-chart-content" data-exam-annotation={'chart:'+currentTab}>{chart[currentTab]}</div></aside>}
      <article className="exam-question">
       {!reviewAvailable&&<p className="exam-question-kind">Detailed question snapshots are not enabled for this session.</p>}
-      <p className="exam-question-kind">{question.category} · {question.ngn_format?({'calculation':'Calculation','ordered':'Ordered response','dyad-cloze':'Paired rationale cloze','bowtie':'Bowtie','highlight':'Highlight findings','cloze':'Drop-down cloze','drag-cloze':'Drag-and-drop cloze','drag-select':'Drag-and-drop selection'} as Record<string,string>)[question.ngn_format]:question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
+      <p className="exam-question-kind">{question.case_context&&<>Case {question.case_context.case_number} · Item {question.case_context.item_number} of {question.case_context.item_count} · </>}{question.category} · {question.ngn_format?({'calculation':'Calculation','ordered':'Ordered response','dyad-cloze':'Paired rationale cloze','bowtie':'Bowtie','highlight':'Highlight findings','cloze':'Drop-down cloze','drag-cloze':'Drag-and-drop cloze','drag-select':'Drag-and-drop selection'} as Record<string,string>)[question.ngn_format]:question.type==='sata'?'Select all that apply':question.type==='matrix'?'Matrix question':'Select the best answer'}</p>
       <>{question.clinical_scenario&&<p data-exam-annotation="scenario" className="exam-clinical-scenario"><FormattedText text={question.clinical_scenario} format={question.content_format}/></p>}</><h1 data-exam-annotation="stem" ref={stem} tabIndex={-1} className={highlights.includes(question.id)?'exam-stem exam-highlight':'exam-stem'}><FormattedText text={question.stem} format={question.content_format}/></h1>
       <ExamImages images={question.images} label="Question image"/>
       {question.ngn_format?<NgnQuestion question={question} answer={answer} solution={review?.answer_key} disabled={Boolean(review)||checking} onChange={choose}/>:question.type==='matrix'?<QuestionMatrix question={question} answer={answer} solution={review?.answer_key} rowExplanations={review?.row_explanations} disabled={Boolean(review)||checking} onChange={choose}/>
@@ -156,7 +156,8 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
          {strikeMode&&!review&&<button type="button" className="exam-strike-button" aria-label={'Strike option '+(n+1)} aria-pressed={crossed} onClick={()=>setStrikes(current=>({...current,[question.id]:crossed?(current[question.id]??[]).filter(id=>id!==option.id):[...(current[question.id]??[]),option.id]}))}><Strikethrough size={17}/></button>}
         </div>;
        })}</fieldset>}
-      {mode==='study'&&!review&&<button type="button" className="exam-submit-answer" disabled={checking||!isQuestionAnswered(question,answer)} onClick={()=>void check()}>{checking?'Checking…':'Submit answer'}</button>}
+      {mode==='study'&&!review&&!question.case_context&&<button type="button" className="exam-submit-answer" disabled={checking||!isQuestionAnswered(question,answer)} onClick={()=>void check()}>{checking?'Checking…':'Submit answer'}</button>}
+      {question.case_context&&!review&&<p className="exam-question-kind">Case answers and rationales are available after you submit the exam.</p>}
       {review&&<section className="exam-rationale" aria-label="Answer rationale"><h2>Answer rationale · {review.earned}/{review.possible} points</h2><p><FormattedText text={review.rationale} format={review.rationale_format}/></p>{question.type!=='matrix'&&<AnswerExplanations options={question.options} answerKey={review.answer_key} explanations={review.answer_explanations}/>}<ExamImages images={review.rationale_images} label="Rationale image"/><NursingTip text={review.nursing_tip}/><NursingTip text={review.test_taking_tip} title="NCLEX Test-taking Tip"/></section>}
       {message&&<p role="alert" className="exam-error">{message}</p>}
      </article>

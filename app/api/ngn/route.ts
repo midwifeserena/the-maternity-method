@@ -1,3 +1,4 @@
+import {scoreLegacyNgn} from '@/lib/ngn-case-scoring.mjs';
 import {publicSnapshot} from '@/lib/exam-review.mjs';
 import {scoreQuestion} from '@/lib/scoring.mjs';
 import {NextRequest, NextResponse} from 'next/server';
@@ -21,34 +22,6 @@ export async function GET(request:NextRequest){
  return NextResponse.json({cases:visibleCases,items:visibleItems.map(i=>(i.content as any)?.question?{...i,content:{format_version:2,question:publicSnapshot((i.content as any).question)}}:i)},{headers:{'Cache-Control':'no-store'}});
 }
 
-function points(expected:Record<string,unknown>,given:Record<string,unknown>){
- let earned=0,possible=0;
- const check=(a:unknown,b:unknown)=>{possible++;if(JSON.stringify(a)===JSON.stringify(b))earned++};
- if(Array.isArray(expected.correct)){
-  const right=new Set(expected.correct as string[]);
-  const got=new Set(Array.isArray(given.correct)?given.correct as string[]:[]);
-  // NCLEX +/- credit: correct selections minus incorrect selections, floor at zero.
-  possible=right.size;
-  earned=Math.max(0,[...got].filter(v=>right.has(v)).length-[...got].filter(v=>!right.has(v)).length);
- }else if(Array.isArray(expected.highlight_segments)){
-  const right=new Set((expected.highlight_segments as number[]).map(String));
-  const got=new Set((Array.isArray(given.highlight_segments)?given.highlight_segments:[]).map(String));
-  possible=right.size;earned=Math.max(0,[...got].filter(v=>right.has(v)).length-[...got].filter(v=>!right.has(v)).length);
- }else if(Array.isArray(expected.rows)){
-  const rows=expected.rows as unknown[];const answers=Array.isArray(given.rows)?given.rows:[];
-  rows.forEach((r,i)=>{const clean=(v:unknown)=>Array.isArray(v)?[...v].sort():[];check(clean(r),clean(answers[i]))});
- }else if(Array.isArray(expected.blanks)){
-  const answers=Array.isArray(given.blanks)?given.blanks:[];
-  expected.blanks.forEach((v,i)=>check(v,answers[i]));
- }else{
-  for(const key of ['actions_to_take','potential_conditions','parameters_to_monitor']){
-   const right=Array.isArray(expected[key])?(expected[key] as string[]):[];
-   const got=Array.isArray(given[key])?(given[key] as string[]):[];
-   if(right.length){possible+=right.length;earned+=Math.max(0,got.filter(v=>right.includes(v)).length-got.filter(v=>!right.includes(v)).length)}
-  }
- }
- return {earned,possible};
-}
 export async function POST(request:NextRequest){
  const db=await createClient();
  const {data:{user}}=await db.auth.getUser();
@@ -69,7 +42,7 @@ export async function POST(request:NextRequest){
  let results;try{results=items.map(i=>{
   const key=byId.get(i.id)!;
   const canonical=(i.content as any)?.question;
-  const p=canonical?scoreQuestion({...canonical,answer_key:(key.answer as any).answer_key},payload.responses[i.id]?.response):points(key.answer as Record<string,unknown>,payload.responses[i.id] as Record<string,unknown>);
+  const p=canonical?scoreQuestion({...canonical,answer_key:(key.answer as any).answer_key},payload.responses[i.id]?.response):scoreLegacyNgn(key.answer as Record<string,unknown>,payload.responses[i.id] as Record<string,unknown>);
   earned+=p.earned;possible+=p.possible;
   return {itemId:i.id,...p,answer:key.answer,answerText:key.answer_text,rationale:key.rationale};
  })}catch{return NextResponse.json({error:'Question scoring configuration is unavailable. Nothing was submitted.'},{status:503})}

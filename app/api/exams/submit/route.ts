@@ -1,3 +1,4 @@
+import {scoreExamSnapshot} from '@/lib/case-exam.mjs';
 import {NextRequest,NextResponse} from 'next/server';
 import {createClient} from '@/lib/supabase/server';
 import {admin} from '@/lib/supabase/admin';
@@ -26,7 +27,7 @@ export async function POST(request:NextRequest){
   const snapshots=await frozenItems(attemptId);
   if(snapshots.error||snapshots.data?.length!==ids.length||snapshots.data.some(row=>!ids.includes(row.question_id)))return NextResponse.json({error:'The archived exam is incomplete. Your test has not been submitted.'},{status:409});
   let entries;
-  try{entries=snapshots.data.map(row=>({question_id:row.question_id,response:body.answers[row.question_id]??null,...scoreQuestion({...row.question_snapshot,answer_key:row.solution_snapshot.answer_key},body.answers[row.question_id])}))}
+  try{entries=snapshots.data.map(row=>({question_id:row.question_id,response:body.answers[row.question_id]??null,...scoreExamSnapshot(row.question_snapshot,row.solution_snapshot,body.answers[row.question_id])}))}
   catch{return NextResponse.json({error:'The saved answer keys could not be scored. Your test has not been submitted.'},{status:500})}
   const {data,error}=await admin().rpc('complete_exam_review_attempt',{p_attempt_id:attemptId,p_user_id:user.id,p_responses:entries,p_duration_seconds:duration});
   if(error)return NextResponse.json({error:'Could not save the complete exam. Your answers are still available; please retry.'},{status:500});
