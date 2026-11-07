@@ -100,3 +100,15 @@
 .question-studio fieldset{min-width:0}.question-studio .input{min-width:0;max-width:100%}.question-studio section{min-width:0}.exam-nursing-tip{overflow-wrap:anywhere}
 
 .exam-clinical-scenario{font-size:var(--exam-font-size,16px);line-height:1.7;white-space:pre-wrap;margin:0 0 24px}.exam-answer-explanations{margin:20px 0;border-top:1px solid var(--exam-border);padding-top:18px}.exam-answer-explanations h3{font-size:18px}.exam-answer-explanations>div{margin-top:16px}.exam-answer-explanations p{white-space:pre-wrap}
+
+/* Case progress and clinical context stay on the left; answers stay on the right. */
+.exam-case-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-width:none;min-height:100%;gap:0}
+.exam-case-information{min-width:0;padding:24px 28px;border-right:1px solid var(--exam-border);overflow-wrap:anywhere}
+.exam-case-progress{font-size:16px;font-weight:700;margin:0 0 8px!important}
+.exam-case-number{font-size:12px;color:var(--exam-muted);margin:0 0 14px}
+.exam-case-information .exam-clinical-scenario{margin:0 0 18px;white-space:pre-wrap;line-height:1.65}
+.exam-case-layout>.exam-question{padding:24px 28px;overflow-wrap:anywhere}
+.exam-case-information .exam-chart-tabs{flex-wrap:wrap;overflow:visible}
+.exam-case-information .exam-chart-tabs button{white-space:normal;text-align:left;min-height:44px}
+@media(min-width:701px){.exam-case-main{padding:0;overflow:hidden}.exam-case-main>.exam-case-layout{height:100%;min-height:0}.exam-case-main .exam-case-information,.exam-case-main .exam-question{height:100%;overflow:auto;overscroll-behavior:contain}}
+@media(max-width:700px){.exam-case-main{padding:0}.exam-case-layout{display:flex;flex-direction:column}.exam-case-information{border-right:0;border-bottom:1px solid var(--exam-border);padding:20px 14px}.exam-case-layout>.exam-question{padding:20px 14px}}
