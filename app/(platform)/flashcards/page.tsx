@@ -1,2 +1,2 @@
-import {FlashcardWorkspace} from '@/components/flashcard-workspace';
-export default function Page(){return <FlashcardWorkspace/>}
+import {StudyStudio} from '@/components/study-studio';
+export default function Page(){return <StudyStudio section="flashcards"/>}
