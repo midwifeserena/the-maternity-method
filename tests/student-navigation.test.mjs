@@ -28,3 +28,6 @@ test('deep-linked exam reviews expand Question Bank and mark Previous Exams curr
  const link=markup.match(/<a[^>]*href="\/previous-tests"[^>]*>/)?.[0];assert(link?.includes('aria-current="page"'));
  assert(markup.includes('Create Exam'));assert(markup.includes('NGN Case Studies'));assert(markup.includes('Previous Exams'));assert(markup.includes('Performance'));
 });
+test('Study Studio groups personal tools and keeps course resource deep links current',()=>{
+ for(const path of ['/study-studio/notebook','/flashcards','/study-guides','/video-lessons']){const markup=sidebarMarkup(path,false);assert(markup.includes('Study Studio'));assert(!markup.includes('id="study-studio-submenu" hidden'));for(const label of ['Notebook','Flashcards','Video Lessons','Podcast','Study Sheets'])assert(markup.includes(label));assert(!markup.includes('Admin Questions'));}
+});
