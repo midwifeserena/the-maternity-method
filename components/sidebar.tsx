@@ -1,20 +1,22 @@
 'use client';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {LayoutDashboard,LibraryBig,PencilLine,History,ClipboardList,PlayCircle,FileText,PanelsTopLeft,ChartNoAxesCombined,UserRound,Menu,X,ChevronDown} from 'lucide-react';
+import {LayoutDashboard,LibraryBig,PencilLine,History,ClipboardList,PlayCircle,FileText,PanelsTopLeft,ChartNoAxesCombined,UserRound,Menu,X,ChevronDown,NotebookPen,Headphones,BookOpen} from 'lucide-react';
 import {useState} from 'react';
 import {StorkLogo} from '@/components/stork-logo';
 
-const studentResources=[['Video Lessons','/video-lessons',PlayCircle],['Study Guides','/study-guides',FileText],['Flashcards','/flashcards',PanelsTopLeft],['Account & Subscription','/account',UserRound]] as const;
+const studentResources=[['Account & Subscription','/account',UserRound]] as const;
+const studioLinks=[['Notebook','/study-studio/notebook',NotebookPen],['Flashcards','/study-studio/flashcards',BookOpen],['Video Lessons','/video-lessons',PlayCircle],['Podcast','/study-studio/podcast',Headphones],['Study Sheets','/study-studio/sheets',FileText]] as const;
 const questionBankLinks=[['Create Exam','/create-exam',PencilLine],['NGN Case Studies','/ngn-case-studies',ClipboardList],['Previous Exams','/previous-tests',History],['Performance','/performance',ChartNoAxesCombined]] as const;
 const adminLinks=[['Admin Questions','/admin/questions',LibraryBig],['Admin NGN Case Studies','/admin/ngn',ClipboardList],['Admin Flashcard Studio','/admin/flashcards',PanelsTopLeft]] as const;
 const linkClass=(active:boolean)=>`flex items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-semibold ${active?'bg-blush text-mauve':'text-mauve hover:bg-blush/70'}`;
 
 export function Sidebar({isAdmin=false}:{isAdmin?:boolean}){
- const pathname=usePathname(),[open,setOpen]=useState(false),[bankOpen,setBankOpen]=useState<boolean|null>(null);
+ const pathname=usePathname(),[open,setOpen]=useState(false),[bankOpen,setBankOpen]=useState<boolean|null>(null),[studioOpen,setStudioOpen]=useState<boolean|null>(null);
  const adminPortal=isAdmin&&(pathname==='/admin'||pathname.startsWith('/admin/'));
  const inQuestionBank=pathname==='/question-bank'||questionBankLinks.some(([,url])=>pathname===url||pathname.startsWith(url+'/'));
  const expanded=bankOpen??inQuestionBank;
+ const inStudio=pathname.startsWith('/study-studio')||['/flashcards','/video-lessons','/study-guides'].includes(pathname),studioExpanded=studioOpen??inStudio;
  return <>
   <button className="md:hidden fixed top-4 left-4 z-[60] rounded-xl bg-oatmeal p-3 shadow" onClick={()=>setOpen(!open)} aria-label={open?'Close navigation':'Open navigation'} aria-expanded={open} aria-controls="main-sidebar">{open?<X/>:<Menu/>}</button>
   {open&&<button className="fixed inset-0 z-30 bg-espresso/30 md:hidden" onClick={()=>setOpen(false)} aria-label="Close menu"/>}
@@ -33,6 +35,7 @@ export function Sidebar({isAdmin=false}:{isAdmin?:boolean}){
       </div>
       <ul id="question-bank-submenu" hidden={!expanded} className="ml-6 mt-1 space-y-1 border-l border-mauve/20 pl-2">{questionBankLinks.map(([label,url,Icon])=>{const active=pathname===url||pathname.startsWith(url+'/');return <li key={url}><Link href={url} onClick={()=>{setBankOpen(true);setOpen(false);}} aria-current={active?'page':undefined} className={linkClass(active)}><Icon className="shrink-0" size={17} strokeWidth={1.8}/><span>{label}</span></Link></li>})}</ul>
      </div>
+     <div><div className={'flex items-center rounded-xl '+(inStudio?'bg-blush':'hover:bg-blush/70')}><Link href="/study-studio" onClick={()=>setStudioOpen(true)} aria-current={pathname==='/study-studio'?'page':undefined} aria-expanded={studioExpanded} aria-controls="study-studio-submenu" className="flex flex-1 items-center gap-3 px-4 py-3 text-[14px] font-semibold text-mauve"><NotebookPen className="shrink-0" size={19} strokeWidth={1.8}/><span>Study Studio</span></Link><button type="button" onClick={()=>setStudioOpen(!studioExpanded)} aria-label={studioExpanded?'Collapse Study Studio menu':'Expand Study Studio menu'} aria-expanded={studioExpanded} aria-controls="study-studio-submenu" className="p-3 text-mauve rounded-xl"><ChevronDown size={17} className={studioExpanded?'rotate-180':''}/></button></div><ul id="study-studio-submenu" hidden={!studioExpanded} className="ml-6 mt-1 space-y-1 border-l border-mauve/20 pl-2">{studioLinks.map(([label,url,Icon])=>{const active=pathname===url||(label==='Flashcards'&&pathname==='/flashcards')||(label==='Study Sheets'&&pathname==='/study-guides');return <li key={url}><Link href={url} onClick={()=>{setStudioOpen(true);setOpen(false)}} aria-current={active?'page':undefined} className={linkClass(active)}><Icon className="shrink-0" size={17} strokeWidth={1.8}/><span>{label}</span></Link></li>})}</ul></div>
      {studentResources.map(([label,url,Icon])=><Link key={url} onClick={()=>setOpen(false)} href={url} aria-current={pathname===url?'page':undefined} className={linkClass(pathname===url)}><Icon className="shrink-0" size={19} strokeWidth={1.8}/><span>{label}</span></Link>)}
     </>}
    </nav>

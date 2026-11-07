@@ -1,0 +1,17 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {FileText,Upload} from 'lucide-react';
+import {assetUrl} from '@/lib/study-studio.mjs';
+import {studioRequest,studioUpload} from './studio-client';
+export function StudioAssets(){
+ const [items,setItems]=useState<any[]>([]),[error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[preview,setPreview]=useState<any>(null),[remove,setRemove]=useState<string|null>(null);
+ async function load(){setLoading(true);try{setItems((await studioRequest('assets')).items);setError('')}catch(e){setError((e as Error).message)}finally{setLoading(false)}}
+ useEffect(()=>{void load()},[]);
+ async function upload(file:File){setBusy(true);try{await studioUpload(file);await load()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ async function deleteFile(id:string){setBusy(true);try{await studioRequest('assets/'+id,{method:'DELETE'});if(preview?.id===id)setPreview(null);setRemove(null);await load()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ return <section><label className="studio-upload block"><span className="inline-flex gap-2 items-center"><Upload size={17}/>Upload your own study sheets or notes</span><p className="studio-muted">PDF, PNG, JPG, WebP or UTF-8 text · 3 MB per file · 50 MB personal allowance</p><input type="file" aria-label="Upload personal study sheet" accept="application/pdf,image/png,image/jpeg,image/webp,text/plain" disabled={busy} onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file);e.target.value=''}}/></label>
+ {busy&&<p role="status" className="studio-notice">Updating your uploads…</p>}{error&&<p role="alert" className="studio-notice">{error} <button className="underline" onClick={()=>void load()}>Retry</button></p>}
+ <div className="studio-card mt-5">{loading?<p role="status">Loading personal files…</p>:!items.length?<p className="studio-muted">Your personal uploads will appear here. Course study sheets remain available in the Course Sheets tab.</p>:items.map(file=><article key={file.id} className="studio-file"><div><h3 className="flex gap-2 items-center"><FileText size={17}/>{file.name}</h3><p className="studio-muted">{Math.ceil(file.size/1024)} KB · Private to your account</p></div><div className="studio-actions"><button className="studio-button" onClick={()=>setPreview(file)}>Open</button><a className="studio-button" href={assetUrl(file.id)+'?download=1'}>Download</a><button className="studio-button" disabled={busy} onClick={()=>setRemove(file.id)}>Delete</button></div>{remove===file.id&&<div className="studio-notice">Delete this saved file? Notebook images using it will no longer load.<div className="studio-actions"><button className="studio-button" disabled={busy} onClick={()=>void deleteFile(file.id)}>Delete file</button><button className="studio-button" onClick={()=>setRemove(null)}>Keep file</button></div></div>}</article>)}</div>
+ {preview&&<section className="studio-card mt-5"><div className="studio-actions"><h2>{preview.name}</h2><button className="studio-button" onClick={()=>setPreview(null)}>Close preview</button></div>{preview.mime.startsWith('image/')?<img src={assetUrl(preview.id)} alt={preview.name} className="max-w-full h-auto"/>:<iframe title={preview.name} src={assetUrl(preview.id)} className="studio-preview"/>}<p className="studio-muted mt-3">If your browser cannot preview this file, use Download.</p></section>}
+ </section>;
+}
