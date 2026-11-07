@@ -45,7 +45,7 @@ function ItemControl({item,value,onChange,disabled,solution,struck,onToggleStrik
  }
  return <p className="text-sm text-red-700">Unsupported item type: {item.item_type}</p>;
 }
-export function NgnBuilder(){
+export function NgnBuilder({entryPoint='library'}:{entryPoint?:'library'|'create-exam'}){
  const [cases,setCases]=useState<Case[]>([]),[items,setItems]=useState<Item[]>([]);
  const [category,setCategory]=useState('All');
  const [active,setActive]=useState<Case|null>(null),[index,setIndex]=useState(0),[tab,setTab]=useState('');
@@ -62,7 +62,7 @@ export function NgnBuilder(){
  const shell='rounded-2xl border border-rose/30 bg-[#FFF9F2] p-5 md:p-7';
  if(loading)return <div className={shell}>Loading your NGN case studies…</div>;
  if(!active)return <div className="space-y-5 max-w-6xl">
-  <div className={shell}><div className="flex justify-between gap-4 flex-wrap"><div><h2 className="text-2xl">Build an NGN case-study session</h2><p className="text-sm mt-2 text-espresso/65">Select a maternity topic and open a published clinical case.</p></div><span className="pill">{cases.length} available cases</span></div><div className="flex flex-wrap gap-2 mt-6">{['All','Antepartum','Intrapartum','Postpartum','Newborn'].map(x=><button key={x} onClick={()=>setCategory(x)} className={'rounded-full px-4 py-2 text-sm font-semibold '+(category===x?'bg-mauve text-white':'bg-oatmeal text-mauve')}>{x}</button>)}</div></div>
+  <div className={shell}><div className="flex justify-between gap-4 flex-wrap"><div><h2 className="text-2xl">{entryPoint==='create-exam'?'Choose an NGN case study':'Build an NGN case-study session'}</h2><p className="text-sm mt-2 text-espresso/65">Select a maternity topic and open a published clinical case.</p></div><span className="pill">{cases.length} available cases</span></div><div className="flex flex-wrap gap-2 mt-6">{['All','Antepartum','Intrapartum','Postpartum','Newborn'].map(x=><button key={x} onClick={()=>setCategory(x)} className={'rounded-full px-4 py-2 text-sm font-semibold '+(category===x?'bg-mauve text-white':'bg-oatmeal text-mauve')}>{x}</button>)}</div></div>
   {error&&<p role="alert" className="text-red-700">{error}</p>}
   {!filtered.length&&<div className={shell}><h3 className="text-xl">No published case studies yet</h3><p className="text-sm mt-2 text-espresso/65">Your imported cases are saved as drafts. They will appear here once their clinical review is complete and both cases and items are published.</p></div>}
   <div className="grid md:grid-cols-2 gap-4">{filtered.map(c=><article key={c.id} className={shell}><span className="pill">{c.topic} · Case {c.case_number}</span><h3 className="text-2xl mt-4">{c.topic} Case Study {c.case_number}</h3><p className="text-sm text-espresso/65 mt-2">{c.intro}</p><div className="mt-5 flex items-center justify-between"><span className="text-xs text-espresso/60">{items.filter(i=>i.case_id===c.id).length} NGN items</span><button onClick={()=>start(c)} className="btn-primary">Start Case →</button></div></article>)}</div>

@@ -1,10 +1,11 @@
 'use client';
+import {ExamWindow,ExamHeader,ExamFooter} from './exam-window';
 import {useExamAnnotations} from './use-exam-annotations';
 import {useChoiceStrikeout} from './use-choice-strikeout';
 import './exam-annotations.css';
 import {useCallback,useEffect,useRef,useState,type CSSProperties} from 'react';
 import {useRouter} from 'next/navigation';
-import {Bookmark,Calculator,Check,ChevronLeft,ChevronRight,Clock,Highlighter,ListChecks,LogOut,Pause,Play,Settings,Strikethrough,X} from 'lucide-react';
+import {Bookmark,Calculator,Check,ChevronLeft,ChevronRight,Highlighter,ListChecks,LogOut,Pause,Play,Settings,Strikethrough,X} from 'lucide-react';
 import {calculateExpression,formatExamTime,isQuestionAnswered} from '@/lib/exam-tools.mjs';
 import type {Question,Category} from '@/lib/questions';
 import {FormattedText} from './formatted-text';
@@ -121,11 +122,8 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
  const chart=question?.chart??{},chartTabs=Object.keys(chart),currentTab=chartTabs.includes(tab)?tab:chartTabs[0];
  const disabled=phase!=='active'||paused||checking;
 
- return <dialog onContextMenu={annotations.onContextMenu} onMouseUp={annotations.rememberSelection} onKeyUp={annotations.rememberSelection} ref={shell} className="exam-shell" data-theme={theme} style={{'--exam-font-size':fontSize+'px'} as CSSProperties} aria-label={mode==='study'?'Study test':'Timed practice exam'} onCancel={event=>{if(event.target===shell.current){event.preventDefault();if(phase==='active')setPanel('end')}}}>
-  <header className="exam-topbar">
-   <span>{mode==='study'?'Study test (Tutored, Untimed)':'Practice exam (Timed)'}</span><strong className="exam-brand">The Maternity Method</strong>
-   <div className="exam-meta"><span className="exam-clock" aria-label={mode==='test'?'Time remaining':'Elapsed study time'}><Clock size={18}/>{formatExamTime(mode==='test'?remaining:elapsed)}</span><span>Question {items.length?index+1:0} of {items.length}</span></div>
-  </header>
+ return <ExamWindow onContextMenu={annotations.onContextMenu} onMouseUp={annotations.rememberSelection} onKeyUp={annotations.rememberSelection} ref={shell} data-theme={theme} style={{'--exam-font-size':fontSize+'px'} as CSSProperties} aria-label={mode==='study'?'Study test':'Timed practice exam'} onCancel={event=>{if(event.target===shell.current){event.preventDefault();if(phase==='active')setPanel('end')}}}>
+  <ExamHeader label={mode==='study'?'Study test (Tutored, Untimed)':'Practice exam (Timed)'} time={formatExamTime(mode==='test'?remaining:elapsed)} timeLabel={mode==='test'?'Time remaining':'Elapsed study time'} position={`Question ${items.length?index+1:0} of ${items.length}`}/>
   <nav className="exam-toolbar" aria-label="Exam tools">
    <button type="button" onClick={()=>setPanel('calculator')} disabled={phase!=='active'}><Calculator size={18}/>Calculator</button>
    <button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>annotations.highlightSelection()}><Highlighter size={18}/>Highlight selection</button><button type="button" onClick={annotations.clearHighlights}>Clear text highlights</button><span className="exam-sr-only" role="status">{annotations.notice}</span>
@@ -139,7 +137,7 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
    {phase==='loading'?<p role="status">Loading your test…</p>
     :phase==='error'?<section className="exam-centered"><h1>Test unavailable</h1><p role="alert">{message}</p><div className="exam-actions"><button type="button" onClick={()=>setRetry(value=>value+1)}>Try again</button><button type="button" onClick={exit}>Return to test builder</button></div></section>
     :phase==='submitting'?<section className="exam-centered" role="status"><h1>Saving your test…</h1><p>Please keep this page open.</p></section>
-    :result?<section className="exam-centered"><p>Test submitted</p><h1>Your results</h1><strong className="exam-score">{result.possible?Math.round(result.earned/result.possible*100):0}%</strong><p>{result.earned} of {result.possible} available points</p><p>Your attempt is saved in Previous Tests and Performance.</p><div className="exam-actions"><button type="button" onClick={()=>router.push('/previous-tests')}>View previous tests</button>{result.attemptId&&<button type="button" onClick={()=>router.push('/previous-tests/'+result.attemptId)}>Review this exam</button>}<button type="button" onClick={exit}>Return to test builder</button></div></section>
+    :result?<section className="exam-centered"><p>Test submitted</p><h1>Your results</h1><strong className="exam-score">{result.possible?Math.round(result.earned/result.possible*100):0}%</strong><p>{result.earned} of {result.possible} available points</p><p>Your attempt is saved in Previous Exams and Performance.</p><div className="exam-actions"><button type="button" onClick={()=>router.push('/previous-tests')}>View previous exams</button>{result.attemptId&&<button type="button" onClick={()=>router.push('/previous-tests/'+result.attemptId)}>Review this exam</button>}<button type="button" onClick={exit}>Return to test builder</button></div></section>
     :paused?<section className="exam-centered"><h1>{expired?'Time is up':'Test paused'}</h1><p>{expired?'Submit your responses to save this attempt.':'Your questions are hidden and the timer is stopped.'}</p>{message&&<p role="alert">{message}</p>}<div className="exam-actions">{expired?<button type="button" onClick={()=>void finish()}>Retry submission</button>:<><button type="button" onClick={()=>{setPaused(false);setMessage('')}}>Resume test</button><button type="button" onClick={()=>setPanel('end')}>End test</button></>}</div></section>
     :question&&<div className={chartTabs.length?'exam-question-layout exam-with-chart':'exam-question-layout'}>
      {chartTabs.length>0&&<aside className="exam-chart" aria-label="Patient chart"><h2>Patient chart</h2><div className="exam-chart-tabs" role="tablist" aria-label="Clinical chart sections">{chartTabs.map((title,n)=><button type="button" role="tab" id={'exam-chart-tab-'+n} aria-selected={currentTab===title} aria-controls="exam-chart-panel" key={title} onClick={()=>setTab(title)}>{title}</button>)}</div><div id="exam-chart-panel" role="tabpanel" aria-labelledby={'exam-chart-tab-'+chartTabs.indexOf(currentTab)} className="exam-chart-content" data-exam-annotation={'chart:'+currentTab}>{chart[currentTab]}</div></aside>}
@@ -164,11 +162,11 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
      </article>
     </div>}
   </main>
-  <footer className="exam-footer">
+  <ExamFooter>
    <div className="exam-footer-group"><button type="button" onClick={()=>phase==='active'?setPanel('end'):exit()} disabled={phase==='submitting'||checking}><LogOut size={19}/>End</button><button type="button" disabled={phase!=='active'||expired||checking} onClick={()=>setPaused(value=>!value)}>{paused?<Play size={19}/>:<Pause size={19}/>} {paused?'Resume':'Pause'}</button></div>
    <span className="exam-session-mark">The Maternity Method{sessionMark?' · '+sessionMark:''}</span>
    <div className="exam-footer-group"><button type="button" disabled={disabled||index===0} onClick={()=>move(index-1)}><ChevronLeft size={22}/>Previous</button><button type="button" disabled={disabled||!items.length} onClick={()=>setPanel('navigator')}><ListChecks size={19}/>Navigator</button><button type="button" disabled={disabled||!items.length} onClick={()=>index<items.length-1?move(index+1):setPanel('end')}>{index<items.length-1?'Next':'Finish'}<ChevronRight size={22}/></button></div>
-  </footer>
+  </ExamFooter>
   <dialog ref={popup} className={'exam-popup exam-popup-'+(panel??'closed')} aria-label={panel==='settings'?'Test settings':panel==='calculator'?'Calculator':panel==='navigator'?'Question navigator':'End test'} onCancel={event=>{event.preventDefault();event.stopPropagation();setPanel(null)}} onClose={()=>setPanel(null)}>
    <div className="exam-popup-heading"><h2>{panel==='settings'?'Settings':panel==='calculator'?'Calculator':panel==='navigator'?'Question navigator':'End test'}</h2><button type="button" aria-label="Close panel" onClick={()=>setPanel(null)}><X size={20}/></button></div>
    {panel==='settings'&&<div className="exam-settings"><fieldset><legend>Viewing mode</legend>{(['light','dark'] as const).map(value=><label key={value}><input type="radio" name="exam-theme" checked={theme===value} onChange={()=>setTheme(value)}/>{value==='light'?'Light view':'Dark view'}</label>)}</fieldset><label>Question text size<select value={fontSize} onChange={event=>setFontSize(Number(event.target.value))}><option value={16}>Standard</option><option value={18}>Large</option><option value={20}>Extra large</option></select></label></div>}
@@ -176,5 +174,5 @@ export function Exam({category='All',initialMode='study',selectedIds,onExit}:{ca
    {panel==='navigator'&&<><p className="exam-navigation-summary">{answered} answered · {items.length-answered} unanswered · {flags.length} marked for review</p><div className="exam-navigator-grid">{items.map((item,n)=>{const complete=isQuestionAnswered(item,answers[item.id]),marked=flags.includes(item.id);return <button type="button" key={item.id} className={(complete?'is-answered ':'')+(n===index?'is-current':'')} aria-label={'Question '+(n+1)+', '+(complete?'answered':'unanswered')+(marked?', marked for review':'')} aria-current={n===index?'step':undefined} onClick={()=>move(n)}>{n+1}{marked&&<Bookmark size={12} fill="currentColor"/>}</button>})}</div></>}
    {panel==='end'&&<><p>You have answered {answered} of {items.length} questions.</p>{answered<items.length&&<p>{items.length-answered} questions are unanswered or incomplete. You can return to them before submitting.</p>}<p>Submit to save your score and finish this session.</p><div className="exam-end-actions"><button type="button" onClick={()=>setPanel(null)}>Continue test</button><button type="button" onClick={()=>void finish()}>Submit and end test</button><button type="button" className="exam-discard" onClick={exit}>Exit without saving</button></div></>}
   </dialog>
- </dialog>;
+ </ExamWindow>;
 }

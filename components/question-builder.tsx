@@ -2,6 +2,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
 import {isNgnQuestion} from '@/lib/ngn-standalone.mjs';
+import {NgnBuilder} from '@/components/ngn-builder';
 import {Exam} from '@/components/exam';
 import type {Question,Category} from '@/lib/questions';
 
@@ -12,7 +13,7 @@ const statusLabels:{key:Status;label:string}[]=[
   {key:'omitted',label:'Omitted'},{key:'correct',label:'Correct'}
 ];
 const isStatus=(v:string):v is Status=>['unused','incorrect','correct','omitted'].includes(v);
-export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'test'}){
+function StandaloneQuestionBuilder({initialMode='study'}:{initialMode?:'study'|'test'}){
  const [mode,setMode]=useState<'standard'|'custom'>('standard');
  const [examMode,setExamMode]=useState<'study'|'test'>(initialMode);
  const [topics,setTopics]=useState<Category[]>([...pillars]);
@@ -87,7 +88,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
         <span className="pill">{questions.filter(q=>q.category===topic&&(section==='all'||(section==='ngn'?isNgnQuestion(q):!isNgnQuestion(q)))).length}</span>
       </label>)}
     </div>
-    <p className="mt-6 text-sm text-espresso/70">NGN Questions includes standalone bowties, highlighted findings, cloze, drag-and-drop, and matrix questions. Six-question case studies stay in NGN Case Studies.</p>
+    <p className="mt-6 text-sm text-espresso/70">NGN Questions includes standalone bowties, highlighted findings, cloze, drag-and-drop, and matrix questions. Choose NGN Case Studies above to practice complete patient-chart cases.</p>
     <p className="mt-3 text-xs text-espresso/60">Only published questions appear. Counts reflect your Supabase content, not the example platform.</p>
   </div>
   <div className={shell}>
@@ -105,4 +106,16 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
     <button className="btn-primary disabled:opacity-50" disabled={loading||!!error||max===0||count<1||count>max} onClick={build}>Generate Test →</button>
   </div>
  </div>
+}
+
+export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'test'}){
+ const [content,setContent]=useState<'standalone'|'cases'>('standalone');
+ return <div className="space-y-5 max-w-6xl">
+  <section className="rounded-2xl border border-rose/30 bg-[#FFF9F2] p-5 md:p-7" aria-label="Choose exam content">
+   <h2 className="text-2xl">Choose your exam content</h2><p className="mt-2 text-sm text-espresso/65">Practice individual questions or work through a complete NGN patient case.</p>
+   <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Exam content type">{([['standalone','Standalone Questions'],['cases','NGN Case Studies']] as const).map(([value,label])=><button type="button" key={value} aria-pressed={content===value} aria-controls="exam-content-builder" onClick={()=>setContent(value)} className={'rounded-full border px-5 py-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mauve '+(content===value?'bg-mauve text-white border-mauve':'border-rose/50 text-mauve hover:bg-blush')}>{label}</button>)}</div>
+   <p className="mt-4 text-sm text-espresso/70">{content==='standalone'?'Standard questions and standalone NGN formats. Choose Study or Timed Test below.':'All published case studies are available below. Cases use untimed practice; submit the complete case to review its answers and rationales.'}</p>
+  </section>
+  <div id="exam-content-builder">{content==='standalone'?<StandaloneQuestionBuilder initialMode={initialMode}/>:<NgnBuilder entryPoint="create-exam"/>}</div>
+ </div>;
 }
