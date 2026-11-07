@@ -17,6 +17,7 @@ type Format='standard'|'ngn'|'cases';
 type CaseChoice={id:string;case_number:number;topic:string;intro:string};
 export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'test'}){
  const [formats,setFormats]=useState<Format[]>(['standard']);
+ const [allQuestions,setAllQuestions]=useState(false);
  const includeCases=formats.includes('cases'),includeStandalone=formats.some(format=>format!=='cases');
  const [cases,setCases]=useState<CaseChoice[]>([]);
  const [caseReady,setCaseReady]=useState(false),[caseLoading,setCaseLoading]=useState(true),[caseError,setCaseError]=useState(''),[reload,setReload]=useState(0);
@@ -61,13 +62,13 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
  const eligible=questions.filter(q=>topics.includes(q.category)&&matchesFormat(q)&&statuses.includes(latest[q.id]??'unused'));
  const availableCases=useMemo(()=>cases.filter(c=>topics.includes(c.topic as Category)),[cases,topics]);
  const countByStatus=(status:Status)=>questions.filter(q=>topics.includes(q.category)&&matchesFormat(q)&&(latest[q.id]??'unused')===status).length;
- const plan=planExamSelection({count,formats,standard:eligible.filter(q=>!isNgnQuestion(q)).map(q=>q.id),ngn:eligible.filter(isNgnQuestion).map(q=>q.id),cases:availableCases.map(c=>c.id)});
- const blocked=includeStandalone&&loading? 'Loading questions…':(includeStandalone?error:'')||(includeCases&&caseLoading?'Loading cases…':includeCases&&caseError?caseError:includeCases&&!caseReady?'Case-study exams need the database setup before they can be generated.':plan.error);
+ const plan=planExamSelection({count,formats,allQuestions,standard:eligible.filter(q=>!isNgnQuestion(q)).map(q=>q.id),ngn:eligible.filter(isNgnQuestion).map(q=>q.id),cases:availableCases.map(c=>c.id)});
+ const blocked=includeStandalone&&loading? 'Loading questions…':(includeStandalone?error:'')||(includeCases&&caseLoading?'Loading cases…':includeCases&&caseError?caseError:includeCases&&(!allQuestions||availableCases.length>0)&&!caseReady?'Case-study exams need the combined-exam database setup. Ask your administrator to run 202611100001_combined_exam_sessions.sql, then 202611110001_exam_limit_150.sql.':plan.error);
  function toggleTopic(topic:Category){setTopics(current=>current.includes(topic)?current.filter(t=>t!==topic):[...current,topic])}
  function toggleStatus(status:Status){setStatuses(current=>current.includes(status)?current.filter(t=>t!==status):[...current,status])}
- function toggleFormat(format:Format){setFormats(current=>current.includes(format)?current.filter(f=>f!==format):[...current,format])}
+ function toggleFormat(format:Format){setAllQuestions(false);setFormats(current=>current.includes(format)?current.filter(f=>f!==format):[...current,format])}
  function build(){if(blocked)return;const shuffled=(ids:string[])=>{const result=[...ids];if(mode==='standard')for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result};
-  const selected=planExamSelection({count,formats,standard:shuffled(eligible.filter(q=>!isNgnQuestion(q)).map(q=>q.id)),ngn:shuffled(eligible.filter(isNgnQuestion).map(q=>q.id)),cases:shuffled(availableCases.map(c=>c.id))});
+  const selected=planExamSelection({count,formats,allQuestions,standard:shuffled(eligible.filter(q=>!isNgnQuestion(q)).map(q=>q.id)),ngn:shuffled(eligible.filter(isNgnQuestion).map(q=>q.id)),cases:shuffled(availableCases.map(c=>c.id))});
   if(!selected.error)setStarted({questionIds:selected.questionIds,caseIds:selected.caseIds});
  }
  if(started)return <Exam selectedIds={started.questionIds} caseIds={started.caseIds.length?started.caseIds:undefined} initialMode={examMode} onExit={()=>setStarted(null)}/>;
@@ -92,10 +93,11 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
   <div className={shell}>
     <h2 className="text-2xl">Question Category <span className="text-rose text-sm" title="Select one or more maternity pillars">ⓘ</span></h2>
     <div className="flex flex-wrap gap-2 mt-5" role="group" aria-label="Question category">
-      <button type="button" className={pill(formats.length===3)} aria-pressed={formats.length===3} onClick={()=>setFormats(['standard','ngn','cases'])}>All Questions</button>
-      {([['standard','Standalone Only'],['cases','NGN Case Studies Only'],['ngn','NGN Questions']] as const).map(([value,label])=><button type="button" key={value} className={pill(formats.includes(value))} aria-pressed={formats.includes(value)} onClick={()=>toggleFormat(value)}>{label}</button>)}
+      <button type="button" className={pill(allQuestions)} aria-pressed={allQuestions} onClick={()=>{setAllQuestions(true);setFormats(['standard','ngn','cases'])}}>All Questions</button>
+      {([['standard','Standalone Only'],['cases','NGN Case Studies Only'],['ngn','NGN Questions']] as const).map(([value,label])=><button type="button" key={value} className={pill(!allQuestions&&formats.length===1&&formats[0]===value)} aria-pressed={!allQuestions&&formats.length===1&&formats[0]===value} onClick={()=>{setAllQuestions(false);setFormats([value])}}>{label}</button>)}
     </div>
-    <p className="mt-3 text-sm text-espresso/70">Select one format or combine formats. All Questions selects all three. Toggle the other buttons to add or remove a format.</p>
+    <p className="mt-3 text-sm text-espresso/70">Choose one format above, or combine formats below. All Questions includes the available standalone and NGN formats, including complete case studies.</p>
+    <fieldset className="flex flex-wrap gap-4 mt-4"><legend className="text-sm font-semibold mb-2">Combine question formats</legend>{([['standard','Standalone questions'],['ngn','Standalone NGN questions'],['cases','NGN case studies']] as const).map(([value,label])=><label key={value} className="inline-flex items-center gap-2 text-sm"><input type="checkbox" className="accent-mauve" checked={formats.includes(value)} onChange={()=>toggleFormat(value)}/>{label}</label>)}</fieldset>
     <div className="inline-flex bg-oatmeal rounded-full p-1 mt-5"><span className={pill(true)}>Subjects</span><span className="px-5 py-2 text-sm text-espresso/40">Client Needs · coming soon</span></div>
     <div className="mt-6"><label className="inline-flex items-center gap-2 font-semibold text-sm">
       <input type="checkbox" className="accent-mauve h-4 w-4" checked={topics.length===pillars.length} onChange={()=>setTopics(topics.length===pillars.length?[]:[...pillars])}/> All maternity subjects
@@ -115,7 +117,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
       <input aria-label="Number of questions" type="number" min={1} max={MAX_EXAM_ITEMS} value={count} onChange={e=>setCount(Number(e.target.value))} className="w-24 rounded-xl border border-rose/40 p-3 bg-white text-center"/>
     </div>
     <p className="mt-4 text-sm text-espresso/70">{plan.questionIds.length} standalone questions + {plan.caseIds.length*CASE_ITEM_COUNT} case-study questions · {plan.caseIds.length} complete cases</p>
-    {includeCases&&<p className="mt-2 text-sm text-espresso/65">Cases always contain all six questions. For case studies only, choose a multiple of six (6, 12, 18…150).</p>}
+    {includeCases&&<p className="mt-2 text-sm text-espresso/65">Available: {availableCases.length} complete cases ({availableCases.length*CASE_ITEM_COUNT} questions). Cases always contain all six questions. For case studies only, choose a multiple of six (6, 12, 18…150).</p>}
     {includeCases&&caseError&&<button type="button" className="mt-3 underline" onClick={()=>setReload(n=>n+1)}>Retry cases</button>}
     <div className="mt-6 flex items-center gap-3"><span className="text-sm font-semibold">Exam experience:</span>
       <button className={pill(examMode==='study')} aria-pressed={examMode==='study'} onClick={()=>setExamMode('study')}>Study</button>

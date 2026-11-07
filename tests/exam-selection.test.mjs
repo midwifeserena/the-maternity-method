@@ -22,3 +22,6 @@ test('capacity, empty filters and invalid numbers give actionable messages',()=>
  assert.equal(planExamSelection({...bank,standard:['s0'],cases:['c0'],count:7,formats:['standard','cases']}).error,'');
  assert.equal(planExamSelection({...bank,standard:['s0'],count:150,formats:['standard','ngn','cases']}).error,'');
 });
+
+test('case-only totals of 6 and 18 contain no standalone questions',()=>{for(const count of [6,18]){const result=planExamSelection({...bank,count,formats:['cases']});assert.equal(result.error,'');assert.equal(result.questionIds.length,0);assert.equal(result.caseIds.length,count/6);}});
+test('All Questions mixes available formats without requiring an empty NGN pool',()=>{const result=planExamSelection({...bank,ngn:[],count:18,formats:['standard','ngn','cases'],allQuestions:true});assert.equal(result.error,'');assert(result.questionIds.length>0);assert(result.caseIds.length>0);assert.equal(result.questionIds.length+result.caseIds.length*6,18);const casesOnly=planExamSelection({...bank,standard:[],ngn:[],count:18,formats:['standard','ngn','cases'],allQuestions:true});assert.equal(casesOnly.error,'');assert.equal(casesOnly.caseIds.length,3);});
