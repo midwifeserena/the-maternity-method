@@ -12,7 +12,7 @@ export async function GET(_request:NextRequest,{params}:{params:Promise<{collect
 export async function POST(request:NextRequest,{params}:{params:Promise<{collection:string}>}){
  const db=await createClient(),{data:{user}}=await db.auth.getUser();if(!user)return reply({error:'Sign in required'},401);
  const {collection}=await params,table=tables[collection];if(!table)return reply({error:'Not found'},404);
- const body=await request.json().catch(()=>null);if(!body||!validateStudioRecord(collection,body))return reply({error:'Check the title and content. Notebook limits are 20 pages and 500 elements per page.'},400);
+ const body=await request.json().catch(()=>null);if(!body||!validateStudioRecord(collection,body))return reply({error:'Check the title and content. Notebook limits are 100 pages and 500 elements per page.'},400);
  const values=collection==='notes'?{title:body.title.trim(),kind:body.kind,content:body.content}:{topic:body.topic.trim(),front:body.front.trim(),back:body.back.trim(),high_yield:body.high_yield};
  let query;if(body.id){if(!uuid(body.id)||!Number.isInteger(body.revision)||body.revision<1)return reply({error:'Invalid saved item'},400);query=db.from(table).update({...values,revision:body.revision+1,updated_at:new Date().toISOString()}).eq('id',body.id).eq('owner_id',user.id).eq('revision',body.revision);}
  else query=db.from(table).insert({...values,owner_id:user.id});

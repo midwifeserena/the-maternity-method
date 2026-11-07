@@ -1,0 +1,8 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {studioRequest} from './studio-client';
+export function NotebookPdfPicker({busy,onFile,onExisting,onClose}:{busy:boolean;onFile:(file:File)=>void;onExisting:(asset:any)=>void;onClose:()=>void}){
+ const [items,setItems]=useState<any[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ useEffect(()=>{let active=true;studioRequest('assets').then(data=>{if(active)setItems(data.items.filter((a:any)=>a.mime==='application/pdf'))}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[]);
+ return <section className="studio-card notebook-pdf-picker" aria-label="Import PDF pages"><h3>Import PDF pages</h3><p className="studio-muted mt-2">Each PDF page becomes an annotatable notebook page. Choose a PDF up to 3 MB, or reuse one of your private uploads.</p><label className="studio-field mt-4">Upload a PDF<input type="file" aria-label="Import PDF file" accept="application/pdf" disabled={busy} onChange={e=>{const file=e.target.files?.[0];if(file)onFile(file);e.target.value=''}}/></label>{loading?<p role="status" className="studio-muted">Loading saved PDFs…</p>:items.length?<div className="notebook-source-list">{items.map(asset=><button className="studio-button" disabled={busy} key={asset.id} onClick={()=>onExisting(asset)}>{asset.name}</button>)}</div>:<p className="studio-muted">No saved PDFs yet.</p>}{error&&<p className="studio-muted">{error}</p>}<button className="studio-button mt-4" disabled={busy} onClick={onClose}>Close import</button></section>;
+}
