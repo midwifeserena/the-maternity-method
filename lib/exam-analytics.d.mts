@@ -1,0 +1,1 @@
+export function summarizeExamTelemetry(input:unknown,snapshots:any[],answers:Record<string,unknown>,durationSeconds:number):{version:number;changes:{correctToIncorrect:number;incorrectToCorrect:number;incorrectToIncorrect:number};timings:{question_id:string;seconds:number}[]}|null;
