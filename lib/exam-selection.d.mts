@@ -1,1 +1,1 @@
-export function planExamSelection(input:{count:number;formats:('standard'|'ngn'|'cases')[];standard:string[];ngn:string[];cases:string[]}):{questionIds:string[];caseIds:string[];error:string};
+export function planExamSelection(input:{count:number;allQuestions?:boolean;formats:('standard'|'ngn'|'cases')[];standard:string[];ngn:string[];cases:string[]}):{questionIds:string[];caseIds:string[];error:string};
