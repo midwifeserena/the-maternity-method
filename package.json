@@ -19,7 +19,8 @@
     "@supabase/supabase-js": "^2.0.0",
     "@supabase/ssr": "^0.7.0",
     "lucide-react": "^0.468.0",
-    "pdfjs-dist": "6.5.438"
+    "pdfjs-dist": "6.5.438",
+    "fflate": "0.8.3"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

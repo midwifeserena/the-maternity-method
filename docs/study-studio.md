@@ -4,7 +4,7 @@ Study Studio groups Notebook, Flashcards, Video Lessons, Podcast and Study Sheet
 
 ## No paid AI services
 
-No AI model, paid voice service, paid API or new subscription is introduced. The PDF annotation upgrade adds the free PDF.js runtime package, rendered locally. Podcast is an **audio recap**: the student chooses/edits typed text and plays it through native browser speech synthesis. It does not generate an AI summary, transcribe handwriting or images, extract PDF text, or produce an audio download. Scripts can be saved privately and downloaded as plain text. The browser/device determines available voices. Existing Supabase and hosting infrastructure are reused; this is not a promise that hosting/storage usage has no limits or costs.
+No AI model, paid voice service, paid API or new subscription is introduced. The PDF annotation upgrade adds the free PDF.js runtime package, rendered locally. Podcast is an **audio recap**: the student chooses/edits typed text and plays it through native browser speech synthesis. It does not generate an AI summary, transcribe handwriting or images, interpret images, or produce an audio download. Scripts can be saved privately and downloaded as plain text. The browser/device determines available voices. Existing Supabase and hosting infrastructure are reused; this is not a promise that hosting/storage usage has no limits or costs.
 
 ## Personal tools
 
@@ -13,7 +13,7 @@ No AI model, paid voice service, paid API or new subscription is introduced. The
 - **Personal flashcards:** private create/edit/delete workflow with topics and high-yield marking. Reuses the same Flashcards/Learn/Test/read-aloud workspace as the course library. The existing course `/flashcards` page retains its published/approved library scope. Personal cards do not alter course content, exam scores or readiness calculations. Existing browser-local Know it/star ratings remain local, while personal card content is saved privately in Supabase.
 - **Study Sheets:** Course Sheets opens by default, with My Uploads available through a toggle. My Uploads holds private PDF, PNG, JPEG, WebP and UTF-8 text files. Course Sheets reuses the existing 19-sheet library. Uploaded files can be previewed where the browser supports them, downloaded, or explicitly deleted. Removing a notebook retains uploaded source files; removing a source file makes any notebook reference to it unavailable.
 - **Video Lessons:** existing video lesson workflow remains unchanged and is linked under Study Studio.
-- **Podcast:** chooses saved notebook typed text or a saved recap, supports editing, playback/stop/speed, private script save and script download. Images/drawings and PDF contents are not transcribed. It uses the existing native speech hook with no AI calls or voice billing.
+- **Podcast:** chooses saved notebook typed text or a saved recap, supports editing, playback/stop/speed, private script save and script download. PDF, PPTX, DOCX and text files can be imported locally into an editable review script. Images/drawings are not transcribed. Female-preferred voice selection, preview and saved voice preferences are available. See docs/podcast-document-reviews.md. It uses the existing native speech hook with no AI calls or voice billing.
 
 The Study Studio component rechecks browser authentication and remounts private tool state on account changes. Server endpoints always verify the session themselves. Private notebook drafts are namespaced to the authenticated owner and note ID.
 
