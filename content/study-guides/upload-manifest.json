@@ -1,0 +1,135 @@
+[
+  {
+    "slug": "01-prenatal-assessment",
+    "filename": "01-prenatal-assessment.pdf",
+    "source_filename": "01_Antepartum_Assessment_and_Discomforts.pdf",
+    "page_count": 3,
+    "sha256": "fd70edb19c2d9c1b70a1b47d5a80d3042e35c4c8f6c98338669ce44391f02b15"
+  },
+  {
+    "slug": "02-infection-mother-newborn",
+    "filename": "02-infection-mother-newborn.pdf",
+    "source_filename": "02_Chorioamnionitis_and_Neonatal_Sepsis.pdf",
+    "page_count": 3,
+    "sha256": "0f1867472c60b9041deb8a9c87197a866d9525775f04f730be8ebb59c2c2389a"
+  },
+  {
+    "slug": "03-ectopic-molar",
+    "filename": "03-ectopic-molar.pdf",
+    "source_filename": "03_Ectopic_and_Molar_Pregnancy.pdf",
+    "page_count": 2,
+    "sha256": "cc997454e8c3ba7dc3d76ff36a61cacb0039c7450403aa79b329f68945520277"
+  },
+  {
+    "slug": "04-fetal-monitoring",
+    "filename": "04-fetal-monitoring.pdf",
+    "source_filename": "04_Fetal_Monitoring.pdf",
+    "page_count": 3,
+    "sha256": "42ff9a7fea2439aa822d589307a58cd79f78cbfab2e59d7ec187c70cff6154b8"
+  },
+  {
+    "slug": "05-gestational-diabetes",
+    "filename": "05-gestational-diabetes.pdf",
+    "source_filename": "05_Gestational_Diabetes.pdf",
+    "page_count": 3,
+    "sha256": "f92eb4e00ceffc70fc80d2fafb6d3c99aa988e5426c0dc37da47129e7418bc11"
+  },
+  {
+    "slug": "06-newborn-jaundice",
+    "filename": "06-newborn-jaundice.pdf",
+    "source_filename": "06_Hyperbilirubinemia_and_Hemolytic_Disease.pdf",
+    "page_count": 3,
+    "sha256": "dd04bb56f0ef564f223cda4dd3254bd3fc110861773fdcb0ef03b7bdabad9517"
+  },
+  {
+    "slug": "07-labor-emergencies",
+    "filename": "07-labor-emergencies.pdf",
+    "source_filename": "07_Labor_Emergencies.pdf",
+    "page_count": 3,
+    "sha256": "1ae6d4459186d65c8fe92614e6e352110fb806690eca5ab905b2d71da93a6f28"
+  },
+  {
+    "slug": "08-withdrawal-alcohol",
+    "filename": "08-withdrawal-alcohol.pdf",
+    "source_filename": "08_NAS_and_Fetal_Alcohol_Syndrome.pdf",
+    "page_count": 2,
+    "sha256": "b7f147fb64482506a3793f713b3747c9bc58187e1e350523220dc95d346fb44b"
+  },
+  {
+    "slug": "09-newborn-care",
+    "filename": "09-newborn-care.pdf",
+    "source_filename": "09_Newborn_Care.pdf",
+    "page_count": 3,
+    "sha256": "ec352e9d16dea993c38dd5d0c65aef391de6694932a4c862c6aa9c5bb5a65dc6"
+  },
+  {
+    "slug": "10-newborn-respiratory",
+    "filename": "10-newborn-respiratory.pdf",
+    "source_filename": "10_Newborn_Respiratory_Complications.pdf",
+    "page_count": 3,
+    "sha256": "d863ff08810d4314142417399795af792feacb5c5df87c7876f0df0eac4babe3"
+  },
+  {
+    "slug": "11-ob-medications",
+    "filename": "11-ob-medications.pdf",
+    "source_filename": "11_OB_Medications.pdf",
+    "page_count": 3,
+    "sha256": "bb43a9ec8b5df73eb21b78c6e683c035ecc90e7e7f22c24024fc92d6bad5f98a"
+  },
+  {
+    "slug": "12-placental-bleeding",
+    "filename": "12-placental-bleeding.pdf",
+    "source_filename": "12_Placenta_Previa_and_Abruption.pdf",
+    "page_count": 3,
+    "sha256": "7fb815ae4308cd23f245a68c3478b3b44264287f83bd0761837d951592f08876"
+  },
+  {
+    "slug": "13-postpartum-care",
+    "filename": "13-postpartum-care.pdf",
+    "source_filename": "13_Postpartum_Care.pdf",
+    "page_count": 3,
+    "sha256": "8ded4f5a970c6322f15fea102cd446915f6c3ec94253c8a7469654926659c8f9"
+  },
+  {
+    "slug": "14-postpartum-hemorrhage",
+    "filename": "14-postpartum-hemorrhage.pdf",
+    "source_filename": "14_Postpartum_Hemorrhage.pdf",
+    "page_count": 3,
+    "sha256": "762c8a1554cbacdd72133201b38918c38b76431ac0b4ef8f506494b73a4da0dd"
+  },
+  {
+    "slug": "15-preeclampsia",
+    "filename": "15-preeclampsia.pdf",
+    "source_filename": "15_Preeclampsia.pdf",
+    "page_count": 3,
+    "sha256": "1f65a30d870ee494275d50fc57b10ab06cc360b9ed083446d1613962aef87c97"
+  },
+  {
+    "slug": "16-preterm-birth",
+    "filename": "16-preterm-birth.pdf",
+    "source_filename": "16_Preterm_Labor_and_Delivery.pdf",
+    "page_count": 3,
+    "sha256": "7cec44372d8679081f6f36b04d0afc109295dee868337dae536898007f221e02"
+  },
+  {
+    "slug": "17-labor-procedures",
+    "filename": "17-labor-procedures.pdf",
+    "source_filename": "17_Process_of_Labor_and_OB_Procedures.pdf",
+    "page_count": 3,
+    "sha256": "4e43229b49872641535f338e698f9a719ea7176df36b5d359cfbb6002b875a89"
+  },
+  {
+    "slug": "18-loss-cervical-insufficiency",
+    "filename": "18-loss-cervical-insufficiency.pdf",
+    "source_filename": "18_Spontaneous_Abortion_Incompetent_Cervix_IUFD.pdf",
+    "page_count": 3,
+    "sha256": "98ee3d6c94ecb466fa80d77b67e66fc13ac076a89e250150c745805a15c81f01"
+  },
+  {
+    "slug": "19-congenital-infections",
+    "filename": "19-congenital-infections.pdf",
+    "source_filename": "19_TORCH_Infections.pdf",
+    "page_count": 3,
+    "sha256": "859b8e0dec33d2c448ff316757147cb7f7edbcde1d7ff218856a97bb72754b79"
+  }
+]
