@@ -34,5 +34,5 @@ export function useExamAnnotations(root:RefObject<HTMLElement|null>,pageKey:stri
  }
  function onContextMenu(event:MouseEvent){const target=event.target instanceof Element?event.target.closest('[data-exam-annotation]'):null;if(target&&highlightSelection())event.preventDefault();}
  function clearHighlights(){delete saved.current[pageKey];pending.current=null;setRevision(n=>n+1);setNotice('Highlights cleared for this question.');}
- return {highlightSelection,rememberSelection,onContextMenu,clearHighlights,notice};
+ return {highlightSelection,rememberSelection,onContextMenu,clearHighlights,notice,revision,exportHighlights:()=>saved.current,restoreHighlights:(value:Record<string,TextHighlight[]>)=>{saved.current=value;setRevision(n=>n+1)}};
 }
