@@ -112,3 +112,5 @@
 .exam-case-information .exam-chart-tabs button{white-space:normal;text-align:left;min-height:44px}
 @media(min-width:701px){.exam-case-main{padding:0;overflow:hidden}.exam-case-main>.exam-case-layout{height:100%;min-height:0}.exam-case-main .exam-case-information,.exam-case-main .exam-question{height:100%;overflow:auto;overscroll-behavior:contain}}
 @media(max-width:700px){.exam-case-main{padding:0}.exam-case-layout{display:flex;flex-direction:column}.exam-case-information{border-right:0;border-bottom:1px solid var(--exam-border);padding:20px 14px}.exam-case-layout>.exam-question{padding:20px 14px}}
+
+.exam-save-status{margin:0;padding:4px 14px;background:var(--exam-panel);color:var(--exam-muted);font-size:12px;flex:none;overflow-wrap:anywhere}
