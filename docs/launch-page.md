@@ -9,7 +9,7 @@ Edit `app/launch/launch-config.ts`:
 - `heroVideoUrl`: HTTPS YouTube, Vimeo, or MP4 URL. Empty shows a video placeholder.
 - `founderPhotoPath`: a local `/...` path or image URL. Empty shows a clearly labeled founder placeholder.
 - `questionBankCount`: a verified number, or `null` to omit the count.
-- `testimonials`: replace the clearly labeled placeholder cards with approved real feedback.
+- `forumQuotes`: short excerpts from public nursing student forums, with direct links to the source threads.
 - `contactEmail`: enables contact links in the FAQ and footer when supplied.
 - `launchDate`, `kitFormUid`: launch date and the Kit form identifier.
 - `siteUrl`: reads `NEXT_PUBLIC_SITE_URL`. Set this to the canonical public HTTPS domain in Vercel for absolute social-sharing image URLs.

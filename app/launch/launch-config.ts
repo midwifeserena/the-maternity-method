@@ -4,10 +4,28 @@ export const launchConfig={
  heroVideoUrl:'',
  founderPhotoPath:'',
  questionBankCount:null as number|null,
- testimonials:[
-  {quote:'Student testimonial coming soon.',name:'Student name',detail:'Placeholder testimonial'},
-  {quote:'Student testimonial coming soon.',name:'Student name',detail:'Placeholder testimonial'},
-  {quote:'Student testimonial coming soon.',name:'Student name',detail:'Placeholder testimonial'}
+ forumQuotes:[
+  {
+   quote:'their own beasts',
+   source:'Reddit · r/StudentNurse',
+   url:'https://www.reddit.com/r/StudentNurse/comments/1jw4e4w/tips_for_mombaby/',
+   context:'On how different perinatal and pediatric nursing feel'
+  },
+  {
+   quote:'peds/ob is literally hell',
+   source:'Reddit · r/StudentNurse',
+   url:'https://www.reddit.com/r/StudentNurse/comments/1jo8q4b/any_tips_on_passing_motherbaby_class/'
+  },
+  {
+   quote:'I failed the second test in OB.',
+   source:'allnurses · General Students',
+   url:'https://allnurses.com/peds-ob-passing-t691342/'
+  },
+  {
+   quote:'I have failed the first 2 exams and I have felt extremely prepared for both.',
+   source:'allnurses · LPN, LVN Students',
+   url:'https://allnurses.com/maternity-amp-peds-class-please-t500731/'
+  }
  ],
  contactEmail:'',
  kitFormUid:'2a295bc95f',
