@@ -209,6 +209,9 @@ export default function LaunchPage() {
             <img
               className={styles.photo}
               src={content.founderPhotoPath}
+              width={1087}
+              height={1447}
+              loading="lazy"
               alt="Serena, founder of The Maternity Method"
             />
           ) : (
