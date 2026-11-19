@@ -153,7 +153,7 @@ export default function LaunchPage() {
         </p>
 
         <div className={styles.video}>
-          <HeroVideo url={content.heroVideoUrl} />
+          <HeroVideo url={content.heroVideoUrl} title={content.heroVideoTitle} />
         </div>
 
         <div className={styles.actions}>

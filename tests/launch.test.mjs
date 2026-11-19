@@ -13,6 +13,16 @@ test('launch video accepts supported HTTPS sources and preserves Vimeo privacy h
  for(const url of ['javascript:alert(1)','http://example.test/intro.mp4','https://youtube.com.evil.test/watch?v=8UoePns2tWM'])assert.equal(launchVideoSource(url).kind,'invalid');
 });
 
+test('Vimeo muted autoplay is explicit and preserves the embed settings',()=>{
+ const source=launchVideoSource('https://player.vimeo.com/video/123456?h=abcdef&autopause=0&player_id=0&app_id=58479&autoplay=1&muted=1');
+ assert.equal(source.autoplayOnLoad,true);
+ assert.deepEqual(Object.fromEntries(new URL(source.src).searchParams),{
+  h:'abcdef',autopause:'0',muted:'1',player_id:'0',app_id:'58479',autoplay:'1'
+ });
+ assert.equal(launchVideoSource('https://player.vimeo.com/video/123456?autoplay=1').autoplayOnLoad,false);
+ assert.equal(launchVideoSource('https://player.vimeo.com/video/123456?muted=1').autoplayOnLoad,false);
+});
+
 test('only the public launch route bypasses the existing Supabase session refresh',async()=>{
  let clients=0,claims=0;
  const compiled={exports:{}};

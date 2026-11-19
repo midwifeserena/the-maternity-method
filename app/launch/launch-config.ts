@@ -1,7 +1,8 @@
 /** Launch-page content only. These values never change the existing home or portal. */
 export const launchConfig={
  launchDate:'1.11.27',
- heroVideoUrl:'https://player.vimeo.com/video/1248161079?h=5519b8bb7e',
+ heroVideoUrl:'https://player.vimeo.com/video/1248161079?h=5519b8bb7e&autopause=0&player_id=0&app_id=58479&autoplay=1&muted=1',
+ heroVideoTitle:'hi. i am serena.',
  founderPhotoPath:'',
  questionBankCount:null as number|null,
  forumQuotes:[
