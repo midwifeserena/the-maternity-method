@@ -129,6 +129,11 @@ export default function LaunchPage() {
           Launching {launchDate}
         </p>
 
+        <p className={styles.promoBurst}>
+          <span>Launch promo</span>
+          <strong>90 days for $30</strong>
+        </p>
+
         <h1>
           Maternity isn’t just another class. <em>Stop studying it like one.</em>
         </h1>

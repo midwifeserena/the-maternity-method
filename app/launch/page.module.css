@@ -89,3 +89,54 @@ p.quoteCaption {
   height: auto;
   margin: 0 auto 22px;
 }
+
+.hero .promoBurst {
+  --burst-shape: polygon(
+    0% 48%, 12% 38%, 6% 20%, 23% 25%, 22% 5%, 36% 18%,
+    47% 0%, 55% 16%, 70% 4%, 72% 22%, 90% 12%, 85% 31%,
+    100% 37%, 91% 50%, 100% 65%, 85% 68%, 91% 88%, 73% 80%,
+    68% 98%, 55% 84%, 44% 100%, 36% 83%, 19% 94%, 22% 76%,
+    6% 79%, 12% 62%
+  );
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  width: min(100%, 252px);
+  min-height: 114px;
+  margin: 0 auto 14px;
+  padding: 26px 30px;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.promoBurst::before,
+.promoBurst::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  clip-path: var(--burst-shape);
+}
+
+.promoBurst::before {
+  inset: 0;
+  background: var(--ink);
+}
+
+.promoBurst::after {
+  inset: 4px 5px;
+  background: #ffe29a;
+}
+
+.promoBurst span {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.promoBurst strong {
+  font-size: 20px;
+  font-weight: 900;
+}
