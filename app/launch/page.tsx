@@ -1,5 +1,5 @@
 import type {Metadata} from 'next';
-import Image from 'next/image';
+import {SiteBrand} from '@/components/site-brand';
 import {Fraunces, Nunito_Sans} from 'next/font/google';
 import {launchConfig as content} from './launch-config';
 import {HeroVideo} from './components/hero-video';
@@ -112,20 +112,7 @@ export default function LaunchPage() {
       </a>
 
       <header className={styles.header}>
-        <a className={styles.brand} href="#top">
-          <Image
-            src={content.headerLogoPath}
-            width={72}
-            height={48}
-            alt="The Maternity Method logo"
-            priority
-          />
-          <span>
-            The Maternity
-            <br />
-            Method
-          </span>
-        </a>
+        <SiteBrand href="#top" label="The Maternity Method launch page top" />
 
         <nav aria-label="Launch page">
           <a href="#inside">What’s inside</a>

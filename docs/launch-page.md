@@ -15,7 +15,7 @@ Edit `app/launch/launch-config.ts`:
 - `launchDate`, `kitFormUid`: launch date and the Kit form identifier.
 - `siteUrl`: reads `NEXT_PUBLIC_SITE_URL`. Set this to the canonical public HTTPS domain in Vercel for absolute social-sharing image URLs.
 
-The missing mockup HTML was replaced by the supplied screenshot as the visual reference. The original `public/logo.png` was not supplied; the existing repository stork artwork was copied to that path and compressed to `public/launch-logo.webp` (300 pixels wide, approximately 7 KB) for the header. Replace both assets together if a different logo is desired. Fonts are Fraunces and Nunito Sans, scoped to this page; existing fonts are unchanged.
+The missing mockup HTML was replaced by the supplied screenshot as the visual reference. The launch header shares the main site wordmark through `components/site-brand.tsx`. The launch page uses `public/logo.png` for social previews. Fonts are Fraunces and Nunito Sans, scoped to this page; existing fonts are unchanged.
 
 ## Email and video
 

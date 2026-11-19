@@ -31,6 +31,5 @@ export const launchConfig={
  contactEmail:'',
  kitFormUid:'2a295bc95f',
  siteUrl:process.env.NEXT_PUBLIC_SITE_URL??'',
- logoPath:'/logo.png',
- headerLogoPath:'/launch-logo.webp'
+ logoPath:'/logo.png'
 };
