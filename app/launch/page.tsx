@@ -226,10 +226,11 @@ export default function LaunchPage() {
             <p className={styles.eyebrow}>Meet The Maternity Method</p>
             <h2>Built by a midwife. Made for how you actually learn.</h2>
             <p>
-              I’m Serena. I’ve been a licensed midwife for over 10 years, and I went
-              back to school and graduated from an RN program. I built The Maternity
-              Method after seeing good students struggle in OB. It doesn’t have to
-              feel that hard to get your bearings.
+              I’m Serena. I’ve been a licensed midwife for over 10 years delivering
+              babies in an out of hospital setting. I recently went back to school and
+              earned my RN. Along the way, I watched so many smart, hardworking students
+              struggle with OB. That’s why I built The Maternity Method. OB doesn’t have
+              to feel this hard and you don’t have to figure it out alone.
             </p>
             <a className={styles.textLink} href="#launch">
               Join the launch list
