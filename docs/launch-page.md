@@ -21,7 +21,7 @@ The missing mockup HTML was replaced by the supplied screenshot as the visual re
 
 Kit owns subscriptions. No database table or migration is required. The embed inserts the vendor script inside its own container, waits for a form/iframe, and supports retry after failure. Form appearance, fields, consent, and email automations are managed in Kit. Test a real subscription on the Vercel preview before launch. No application Content Security Policy was present to modify; if one is configured externally, allow the required Kit/ConvertKit script, style, frame, image, connection and form endpoints.
 
-YouTube uses a privacy-enhanced embed; Vimeo supports unlisted-video hashes. Video requests begin after Play is pressed unless the Vimeo URL explicitly requests muted autoplay with `autoplay=1&muted=1`. MP4 uses native controls. No video URL has been invented.
+YouTube uses a privacy-enhanced embed; Vimeo supports unlisted-video hashes. Video requests begin after Play is pressed unless the URL explicitly requests muted autoplay with `autoplay=1&muted=1` for Vimeo or `autoplay=1&mute=1` for YouTube. MP4 uses native controls. No video URL has been invented.
 
 ## Shared change
 

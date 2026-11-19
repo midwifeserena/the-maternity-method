@@ -5,7 +5,12 @@ export function launchVideoSource(value){
  const host=u.hostname.toLowerCase().replace(/^www\./,''),path=u.pathname.split('/').filter(Boolean);
  if(['youtube.com','m.youtube.com','youtu.be','youtube-nocookie.com'].includes(host)){
   const id=host==='youtu.be'?path[0]:['embed','shorts','live'].includes(path[0])?path[1]:u.searchParams.get('v');
-  return /^[\w-]{11}$/.test(id??'')?{kind:'embed',src:`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`,provider:'YouTube'}:{kind:'invalid'};
+  if(!/^[\w-]{11}$/.test(id??''))return {kind:'invalid'};
+  const autoplayOnLoad=u.searchParams.get('autoplay')==='1'&&u.searchParams.get('mute')==='1';
+  const src=`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+  return autoplayOnLoad
+   ?{kind:'embed',src:src+'&mute=1',provider:'YouTube',autoplayOnLoad}
+   :{kind:'embed',src,provider:'YouTube'};
  }
  if(['vimeo.com','player.vimeo.com'].includes(host)){
   const id=path[0]==='video'?path[1]:path[0];if(!/^\d+$/.test(id??''))return {kind:'invalid'};
