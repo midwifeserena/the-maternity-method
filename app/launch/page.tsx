@@ -279,6 +279,21 @@ export default function LaunchPage() {
         </p>
       </section>
 
+      <section id="mentorship" className={styles.section} aria-labelledby="mentorship-title">
+        <div className={`${styles.card} ${styles.mentorship}`}>
+          <p className={styles.badge}>Launch week exclusive</p>
+          <h2 id="mentorship-title">The Maternity Method Mentorship</h2>
+          <img className={styles.skoolLogo} src="/images/skool-wordmark.png" width={384} height={125} alt="Skool" loading="lazy" />
+          <p>
+            Sign up for The Maternity Method within the first 7 days of launch
+            and you’ll get free access to our private Skool community.
+            Get real mentorship, ask questions, and connect with other nursing
+            students and NCLEX takers.
+          </p>
+          <p><strong>Once launch week ends, this free bonus is gone.</strong></p>
+        </div>
+      </section>
+
       <section
         id="launch"
         className={`${styles.section} ${styles.champagne}`}

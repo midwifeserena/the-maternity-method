@@ -68,3 +68,17 @@ p.quoteCaption {
   font-size: 1.75rem;
   color: var(--rose);
 }
+
+.mentorship {
+  max-width: 690px;
+  margin-inline: auto;
+  padding: clamp(24px, 5vw, 48px);
+  text-align: center;
+}
+
+.skoolLogo {
+  display: block;
+  width: 128px;
+  height: auto;
+  margin: 0 auto 22px;
+}
