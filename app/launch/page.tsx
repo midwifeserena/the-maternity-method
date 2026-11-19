@@ -282,7 +282,16 @@ export default function LaunchPage() {
       <section id="mentorship" className={styles.section} aria-labelledby="mentorship-title">
         <div className={`${styles.card} ${styles.mentorship}`}>
           <p className={styles.badge}>Launch week exclusive</p>
-          <h2 id="mentorship-title">The Maternity Method Mentorship</h2>
+          <h2 id="mentorship-title">
+            <img
+              className={styles.mentorshipBanner}
+              src="/images/maternity-mentorship.webp"
+              width={1200}
+              height={400}
+              alt="The Maternity Method Mentorship"
+              loading="lazy"
+            />
+          </h2>
           <img className={styles.skoolLogo} src="/images/skool-wordmark.png" width={384} height={125} alt="Skool" loading="lazy" />
           <p>
             Sign up for The Maternity Method within the first 7 days of launch

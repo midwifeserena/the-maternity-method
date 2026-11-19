@@ -76,6 +76,13 @@ p.quoteCaption {
   text-align: center;
 }
 
+.mentorshipBanner {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
 .skoolLogo {
   display: block;
   width: 128px;
