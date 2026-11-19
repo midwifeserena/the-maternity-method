@@ -19,10 +19,10 @@ const body = Nunito_Sans({
 });
 
 const launchDate = 'January 11, 2027';
-const title = 'The Maternity Method | $30 for 90 Days at Launch';
+const title = 'The Maternity Method | 90 Days for $30 at Launch';
 const description =
   `The maternity and newborn study system built by a licensed midwife. ` +
-  `Join the launch list for $30 for 90 days. Your promo code arrives ` +
+  `Get 90 days for $30 at launch. Join the launch list and your promo code arrives ` +
   `${launchDate} and is valid for 7 days.`;
 
 export const metadata: Metadata = {
@@ -84,12 +84,12 @@ const faqs = [
     `The Maternity Method launches ${launchDate}. Join the launch list to receive your promo code by email on launch day.`,
   ],
   [
-    'How does the $30 offer work?',
+    'How do I get 90 days for $30?',
     `Join the launch list and we’ll email your promo code on ${launchDate}. Use it to purchase 90 days of access to The Maternity Method for $30.`,
   ],
   [
     'How long is the promo code valid?',
-    'The launch promo code will be valid for 7 days. Redeem it during that window to receive 90 days of access for $30. Once you redeem it, you’ll have 90 days of access.',
+    'You have 7 days to redeem the promo code for 90 days of access for $30.',
   ],
   [
     'Can I study on my phone?',
@@ -126,7 +126,7 @@ export default function LaunchPage() {
 
       <section id="main-content" className={styles.hero}>
         <p className={styles.badge}>
-          Launching {launchDate} · $30 for 90 days
+          Launching {launchDate}
         </p>
 
         <h1>
@@ -153,7 +153,7 @@ export default function LaunchPage() {
         </div>
 
         <p className={styles.small}>
-          Join the launch list for $30 for 90 days. Your promo code arrives{' '}
+          Get 90 days for $30 at launch. Join the launch list and your promo code arrives{' '}
           {launchDate} and is valid for 7 days.
         </p>
       </section>
@@ -309,12 +309,18 @@ export default function LaunchPage() {
       >
         <div className={styles.signup}>
           <p className={styles.badge}>Launch list offer</p>
-          <h2>$30 for 90 days.</h2>
+          <h2>Get 90 days in the Study Suite.</h2>
+
+          <p>
+            Practice maternity and newborn questions, watch short video lessons,
+            and keep the study guides handy for your next OB exam.
+          </p>
+
+          <p><strong>90 days for $30 at launch.</strong></p>
 
           <p>
             Join the launch list for The Maternity Method. We’ll email
-            your promo code on <strong>{launchDate}</strong> so you can
-            get <strong>90 days of access for $30</strong>.
+            your promo code on <strong>{launchDate}</strong>.
           </p>
 
           <p>
