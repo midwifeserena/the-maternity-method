@@ -228,7 +228,7 @@ export default function LaunchPage() {
             <p>
               I’m Serena. I’ve been a licensed midwife for over 10 years delivering
               babies in an out of hospital setting. I recently went back to school and
-              earned my RN. Along the way, I watched so many smart, hardworking students
+              earned my ASN. Along the way, I watched so many smart, hardworking students
               struggle with OB. That’s why I built The Maternity Method. OB doesn’t have
               to feel this hard and you don’t have to figure it out alone.
             </p>
