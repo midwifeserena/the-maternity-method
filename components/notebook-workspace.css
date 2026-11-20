@@ -178,3 +178,10 @@
   cursor: ew-resize;
   touch-action: none;
 }
+
+.notebook-paper:is([data-tool=pen],[data-tool=highlight],[data-tool=shape]) {
+  touch-action: none;
+}
+.notebook-ink-width {
+  inline-size: 4.25rem;
+}
