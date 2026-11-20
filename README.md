@@ -77,7 +77,7 @@ npm run dev
 **Scope:** An existing prototype includes some Phase 2–5 screens and schema, but those features are not certified as complete, secure, or production-ready. Phase 1 work does not imply later phases are done.
 
 ## Content protection
-The authenticated student area now includes a persistent account-linked watermark and casual-copy deterrents. See `CONTENT_PROTECTION.md` for technical limitations, privacy/accessibility considerations, and additional production security controls required. Browser screenshots and recordings **cannot be reliably blocked**.
+The authenticated student area includes casual-copy deterrents, and the exam header shows a shortened student ID. See `CONTENT_PROTECTION.md` for technical limitations, privacy/accessibility considerations, and additional production security controls required. Browser screenshots and recordings **cannot be reliably blocked**.
 
 ## Public landing page (October 28 screenshot reference)
 

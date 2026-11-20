@@ -1,11 +1,11 @@
 # Student content protection strategy
 
 ## Implemented in this starter
-- Student-linked repeating watermark on authenticated platform content, using a shortened auth user ID, not their private email.
+- The exam header includes a shortened student ID.
 - Browser-side deterrents for copying, cutting, right-click context menu, drag-and-drop and common keyboard shortcuts inside the authenticated course area.
 - Text inputs remain editable. Prints hide protected course content.
 
-**Limits:** None of these prevent operating-system screenshots, third-party screen recording, browser devtools, network extraction, or photographs of the screen. `Permissions-Policy: display-capture=()` only restricts capture initiated by a page using the Screen Capture API; it does not prevent outside capture. Never claim otherwise. Watermarks can be cropped or removed; their purpose is accountability/deterrence, not guaranteed attribution.
+**Limits:** None of these prevent operating-system screenshots, third-party screen recording, browser devtools, network extraction, or photographs of the screen. `Permissions-Policy: display-capture=()` only restricts capture initiated by a page using the Screen Capture API; it does not prevent outside capture. Never claim otherwise.
 
 ## Production priorities (not yet implemented)
 1. Supabase private Storage buckets with row-level security and **short-lived** server-generated URLs for authorized PDF and media access. URLs are still reusable until expiry and should not be treated as DRM.
