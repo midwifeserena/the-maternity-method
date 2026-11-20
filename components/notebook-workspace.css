@@ -156,7 +156,7 @@
   bottom: auto;
   top: calc(100% + 3px);
 }
-.notebook-text-controls button,.notebook-text-resize {
+.notebook-text-controls button,.notebook-text-resize,.notebook-image-resize {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -184,4 +184,12 @@
 }
 .notebook-ink-width {
   inline-size: 4.25rem;
+}
+
+.notebook-image-resize {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-100%, -100%);
+  cursor: nwse-resize;
+  touch-action: none;
 }
