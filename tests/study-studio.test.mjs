@@ -14,3 +14,15 @@ test('uploads enforce real file signatures and strict private owner/asset paths'
  assert.equal(detectStudioUpload(new Uint8Array([37,80,68,70,45,49]),'application/pdf').extension,'pdf');assert.equal(detectStudioUpload(new TextEncoder().encode('Typed notes'),'text/plain').extension,'txt');assert.equal(detectStudioUpload(new TextEncoder().encode('<svg/>'),'image/svg+xml'),null);assert.equal(detectStudioUpload(new TextEncoder().encode('fake pdf'),'application/pdf'),null);
  const owner=randomUUID(),id=randomUUID();assert(validAssetPath(owner+'/'+id+'.pdf',owner,id));assert(!validAssetPath(owner+'/../other/file.pdf',owner,id));assert(!validAssetPath('other/'+id+'.pdf',owner,id));
 });
+
+test('notebook templates and library metadata fit the existing private record format',()=>{
+ const content={...blankNotebook(),cover:'burgundy',folder:'Maternity',trashed:true};
+ content.pages[0]={...content.pages[0],paper:'cornell',tone:'ivory',width:1697,height:1200};
+ assert(validateStudioRecord('notes',{title:'Prenatal review',kind:'notebook',content}));
+ assert(validNotebook(blankNotebook()));
+ assert(!validNotebook({...content,folder:'x'.repeat(61)}));
+ assert(!validNotebook({...content,trashed:'true'}));
+ assert(!validNotebook({...content,cover:'other'}));
+ assert(!validNotebook({...content,pages:[{...content.pages[0],paper:'other'}]}));
+ assert(!validNotebook({...content,pages:[{...content.pages[0],tone:'other'}]}));
+});
