@@ -72,7 +72,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
   if(!selected.error)setStarted({questionIds:selected.questionIds,caseIds:selected.caseIds});
  }
  if(started)return <Exam selectedIds={started.questionIds} caseIds={started.caseIds.length?started.caseIds:undefined} initialMode={examMode} onExit={()=>setStarted(null)}/>;
- const shell='rounded-2xl border border-rose/30 bg-[#FFF9F2] p-5 md:p-7';
+ const shell='rounded-2xl border-2 border-rose bg-[#FFF9F2] p-5 md:p-7';
  const pill=(active:boolean)=>`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${active?'bg-mauve text-white':'text-mauve hover:bg-blush'}`;
  return <div className="space-y-5 max-w-5xl">
   <div className={shell}>
