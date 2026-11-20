@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildFlashcardTest,flashcardTestScore,readCardProgress,definitionKey,speechChunks,shuffled} from '../lib/flashcard-study.mjs';
+import {buildLearnQuestion,buildFlashcardTest,flashcardTestScore,readCardProgress,definitionKey,speechChunks,shuffled} from '../lib/flashcard-study.mjs';
 const cards=Array.from({length:8},(_,n)=>({id:'c'+n,front:'Term '+n,back:'Definition '+n,topic:'Antepartum',high_yield:n%2===0,card_number:n}));
 test('multiple-choice quiz snapshots existing content, preserves one key and unique choices per term',()=>{
  const before=structuredClone(cards),questions=buildFlashcardTest(cards,8,'choice',()=>.5);assert.equal(questions.length,8);assert.equal(new Set(questions.map(q=>q.card.id)).size,8);
@@ -23,4 +23,16 @@ test('progress recovers from damaged data and accepts only known rating values a
 });
 test('speech chunks preserve text while bounding utterance length and shuffle does not change source',()=>{
  const text=('A clinical reminder. ').repeat(100),chunks=speechChunks(text);assert(chunks.length>1);assert(chunks.every(c=>c.length<=180));assert.equal(chunks.join(' '),text.trim());assert(speechChunks('x'.repeat(600)).every(c=>c.length<=180));assert.deepEqual(speechChunks('  '),[]);const input=[1,2,3,4];const result=shuffled(input,()=>0);assert.deepEqual(input,[1,2,3,4]);assert.equal(result.length,4);assert.equal(new Set(result).size,4);
+});
+
+test('learn uses distinct saved answers and falls back to recall when choices would be ambiguous',()=>{
+ const current=cards[0];
+ const duplicateTerm={...cards[1],front:'  TERM 0 '};
+ const sharedDefinition={...cards[2],back:cards[1].back};
+ const pool=[current,duplicateTerm,sharedDefinition,cards[3],{...cards[4],back:cards[3].back}];
+ const question=buildLearnQuestion(current,pool,()=>.5);
+ assert.deepEqual(new Set(question.choices.map(choice=>choice.text)),new Set([current.back,cards[3].back]));
+ assert.equal(question.correctId,current.id);
+ assert.deepEqual(buildLearnQuestion(current,pool.slice(0,3)).choices,[]);
+ assert.deepEqual(buildLearnQuestion(current,[current]).choices,[]);
 });

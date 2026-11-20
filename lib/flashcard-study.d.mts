@@ -5,6 +5,7 @@ export type CardTestQuestion={card:StudyCard;choices:{id:string;text:string}[];c
 export function shuffled<T>(items:T[],random?:()=>number):T[];
 export function definitionKey(text:unknown):string;
 export function readCardProgress(value:unknown):CardProgress;
+export function buildLearnQuestion(card:StudyCard,pool:StudyCard[],random?:()=>number):CardTestQuestion;
 export function buildFlashcardTest(cards:StudyCard[],count:number,kind?:'choice'|'written',random?:()=>number):CardTestQuestion[];
 export function flashcardTestScore(questions:CardTestQuestion[],answers:Record<string,string>,kind:'choice'|'written',ratings?:Record<string,CardRating>):{correct:number;total:number;answered:number;omitted:number;assessed:number;percent:number|null};
 export function speechChunks(text:string):string[];
