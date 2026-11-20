@@ -1,14 +1,14 @@
 import type {PDFDocumentLoadingTask,PDFDocumentProxy} from 'pdfjs-dist';
 import {notebookPdfTask} from './notebook-pdf';
 import {pageSize} from './notebook-pages.mjs';
+import {notebookTextLayout,type NotebookText} from './notebook-text';
 import {assetUrl} from './study-studio.mjs';
 
 type Stroke={kind:'stroke';points:[number,number][];width:number;color:string;opacity:number};
-type Text={kind:'text';x:number;y:number;fontSize:number;color:string;text:string};
 type ImageElement={kind:'image';x:number;y:number;w:number;h:number;assetId:string};
 type Page={
  width?:number; height?:number; paper?:string; tone?:string;
- background?:{assetId:string;sourcePage:number}; elements:(Stroke|Text|ImageElement)[];
+ background?:{assetId:string;sourcePage:number}; elements:(Stroke|NotebookText|ImageElement)[];
 };
 
 async function privateAsset(id:string){
@@ -35,7 +35,7 @@ function drawPaper(ctx:CanvasRenderingContext2D,page:Page,width:number,height:nu
  }
 }
 
-async function drawElement(ctx:CanvasRenderingContext2D,element:Stroke|Text|ImageElement){
+async function drawElement(ctx:CanvasRenderingContext2D,element:Stroke|NotebookText|ImageElement,pageWidth:number){
  if(element.kind==='stroke'){
   const [first,...remaining]=element.points;
   if(!first)return;
@@ -55,7 +55,8 @@ async function drawElement(ctx:CanvasRenderingContext2D,element:Stroke|Text|Imag
  }else if(element.kind==='text'){
   ctx.fillStyle=element.color;
   ctx.font=`${element.fontSize}px Arial, sans-serif`;
-  element.text.split('\n').forEach((line,index)=>ctx.fillText(line,element.x,element.y+index*element.fontSize*1.3));
+  const layout=notebookTextLayout(element,pageWidth);
+  layout.lines.forEach((line,index)=>ctx.fillText(line,element.x,element.y+index*layout.lineHeight));
  }else{
   const bitmap=await createImageBitmap(await (await privateAsset(element.assetId)).blob());
   try{
@@ -98,7 +99,7 @@ export async function exportNotebookPdf(title:string,pages:Page[],onProgress:(pa
     drawPaper(ctx,page,width,height);
    }
    ctx.setTransform(canvas.width/width,0,0,canvas.height/height,0,0);
-   for(const element of page.elements)await drawElement(ctx,element);
+   for(const element of page.elements)await drawElement(ctx,element,width);
    const image=await output.embedJpg(canvas.toDataURL('image/jpeg',.88));
    const pdfPage=output.addPage([width*.5,height*.5]);
    pdfPage.drawImage(image,{x:0,y:0,width:width*.5,height:height*.5});

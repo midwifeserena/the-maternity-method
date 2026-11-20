@@ -26,3 +26,16 @@ test('notebook templates and library metadata fit the existing private record fo
  assert(!validNotebook({...content,pages:[{...content.pages[0],paper:'other'}]}));
  assert(!validNotebook({...content,pages:[{...content.pages[0],tone:'other'}]}));
 });
+
+test('text box widths persist and older annotations remain valid',()=>{
+ const content=blankNotebook();
+ const annotation={id:randomUUID(),kind:'text',text:'My note',x:20,y:40,fontSize:24,color:'#4e3629'};
+ content.pages[0].elements=[annotation];
+ assert(validNotebook(content));
+ annotation.boxWidth=140;
+ assert(validNotebook(content));
+ for(const width of [0,1201,'140']){
+  annotation.boxWidth=width;
+  assert(!validNotebook(content));
+ }
+});

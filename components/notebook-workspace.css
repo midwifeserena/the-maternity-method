@@ -123,16 +123,58 @@
   .notebook-template-picker { grid-template-columns: minmax(0,1fr); }
   .notebook-workspace .notebook-document-grid { grid-template-columns: repeat(auto-fill,minmax(min(122px,100%),1fr)); }
 }
-.notebook-inline-text {
+.notebook-text-box {
   position: absolute;
   z-index: 2;
-  max-width: 100%;
-  min-height: 44px;
-  border: 1px solid #8e4a55;
-  border-radius: 4px;
-  background: #fffdf4f5;
-  padding: 3px;
+  outline: 1px dashed #8e4a55;
+  pointer-events: none;
+}
+.notebook-inline-text {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 32px;
+  border: 0;
+  background: #fffdf4;
+  padding: 0;
   font-family: Arial, sans-serif;
   line-height: 1.3;
-  resize: vertical;
+  overflow-wrap: anywhere;
+  resize: none;
+  pointer-events: auto;
+}
+.notebook-text-controls {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 3px);
+  display: flex;
+  gap: 3px;
+  white-space: nowrap;
+}
+.notebook-text-controls[data-inset=true] {
+  bottom: auto;
+  top: calc(100% + 3px);
+}
+.notebook-text-controls button,.notebook-text-resize {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+  min-height: 34px;
+  min-width: 34px;
+  border: 1px solid #d8bbb0;
+  border-radius: 7px;
+  background: #fff9f2;
+  color: #803f4b;
+  font-size: 13px;
+  pointer-events: auto;
+}
+.notebook-text-controls .notebook-text-drag { cursor: grab; touch-action: none; }
+.notebook-text-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  cursor: ew-resize;
+  touch-action: none;
 }

@@ -1,8 +1,9 @@
 'use client';
-import {useEffect,useEffectEvent,useRef,useState,type CSSProperties,type PointerEvent} from 'react';
-import {Download,Eraser,Hand,Highlighter,ImagePlus,PenLine,Plus,Redo2,Save,Trash2,Type,Undo2,ArrowLeft,ArrowUp,ArrowDown,Upload,Maximize2,MousePointer2,Shapes,Lasso} from 'lucide-react';
+import {useEffect,useEffectEvent,useRef,useState,type CSSProperties,type KeyboardEvent,type PointerEvent} from 'react';
+import {Download,Eraser,Hand,Highlighter,ImagePlus,PenLine,Plus,Redo2,Save,Trash2,Type,Undo2,ArrowLeft,ArrowUp,ArrowDown,Upload,Maximize2,MousePointer2,Shapes,Lasso,Move,ArrowLeftRight} from 'lucide-react';
 import {assetUrl,blankNotebook,validNotebook,noteText,MAX_UPLOAD_BYTES} from '@/lib/study-studio.mjs';
 import {strokeTouchesEraser,MAX_NOTEBOOK_PAGES,pageSize,makeBlankPage,insertNotebookPages,reorderNotebookPage,pdfPageDescriptor} from '@/lib/notebook-pages.mjs';
+import {notebookTextLayout} from '@/lib/notebook-text';
 import {inspectNotebookPdf} from '@/lib/notebook-pdf';
 import {NotebookPdfPage} from './notebook-pdf-page';
 import {NotebookTemplates,papers,paperColors,type NotebookSetup} from './notebook-templates';
@@ -21,14 +22,11 @@ function insideLasso([x,y]:number[],path:number[][]){
  }
  return inside;
 }
-function elementBounds(element:any){
+function elementBounds(element:any,pageWidth:number){
  if(element.kind==='stroke')return strokeBounds(element.points);
- const lines=element.kind==='text'?element.text.split('\n'):[];
- return {
-  minX:element.x,minY:element.y-(element.kind==='text'?element.fontSize:0),
-  maxX:element.x+(element.kind==='image'?element.w:Math.max(1,...lines.map((line:string)=>line.length))*element.fontSize*.53),
-  maxY:element.y+(element.kind==='image'?element.h:Math.max(1,lines.length-1)*element.fontSize*1.3),
- };
+ if(element.kind==='image')return {minX:element.x,minY:element.y,maxX:element.x+element.w,maxY:element.y+element.h};
+ const layout=notebookTextLayout(element,pageWidth);
+ return {minX:element.x,minY:layout.top,maxX:element.x+layout.width,maxY:layout.top+layout.height};
 }
 async function privatePdfFile(asset:any){const response=await fetch(assetUrl(asset.id),{cache:'no-store',credentials:'same-origin'});if(!response.ok)throw Error('This private PDF is unavailable.');return new File([await response.arrayBuffer()],asset.name,{type:'application/pdf'});}
 export function StudioNotebook(){
@@ -62,6 +60,7 @@ function NotebookEditor({note,onSaved}:{note:any;onSaved:(note:any)=>void}){
  const current=content.pages[page]??content.pages[0],element=current.elements.find((e:any)=>e.id===selected),serialized=JSON.stringify({title,content}),dirty=serialized!==saved;
  const selectedItems=current.elements.filter((item:any)=>group.includes(item.id));
  const {width:pageWidth,height:pageHeight}=pageSize(current);
+ const textLayout=element?.kind==='text'?notebookTextLayout(element,pageWidth):null;
  const scale=zoom||Math.min(1,Math.max(.05,(canvasWidth-36)/pageWidth));
  useEffect(()=>{
   const node=scroller.current;if(!node)return;
@@ -88,7 +87,41 @@ function NotebookEditor({note,onSaved}:{note:any;onSaved:(note:any)=>void}){
  function point(event:{clientX:number;clientY:number}){const rect=svg.current!.getBoundingClientRect();return [Math.max(0,Math.min(pageWidth,(event.clientX-rect.left)*pageWidth/rect.width)),Math.max(0,Math.min(pageHeight,(event.clientY-rect.top)*pageHeight/rect.height))]}
  // Use page-space geometry, rather than requiring an exact hit on thin SVG ink.
  function eraseAt(g:any,to:number[],target?:string|null){const from=g.last;g.last=to;const ids=current.elements.filter((e:any)=>e.kind==='stroke'?strokeTouchesEraser(e,from,to,g.radius):e.id===target).map((e:any)=>e.id);if(!ids.length)return;g.moved=true;setSelected(null);setContent((old:any)=>({...old,pages:old.pages.map((p:any)=>p.id===g.pageId?{...p,elements:p.elements.filter((e:any)=>!ids.includes(e.id))}:p)}));}
- function addText(x=60,y=100){if(current.elements.length>=500)return;const e={id:crypto.randomUUID(),kind:'text',x,y,text:'',fontSize:24,color:tool==='highlight'?'#4e3629':color};commit(elements([...current.elements,e]));setSelected(e.id);setTool('select');setEditingText(true)}
+ function addText(x=60,y=100){if(current.elements.length>=500)return;const e={id:crypto.randomUUID(),kind:'text',x:Math.min(x,pageWidth-80),y:Math.max(24,Math.min(y,pageHeight-30)),boxWidth:Math.min(320,Math.max(80,pageWidth-x)),text:'',fontSize:24,color:tool==='highlight'?'#4e3629':color};commit(elements([...current.elements,e]));setSelected(e.id);setTool('select');setEditingText(true)}
+ function beginTextOrObjectDrag(event:PointerEvent,moving:any[],resize=false){
+  if(busy||gesture.current||event.button!==0)return;
+  if(event.currentTarget instanceof HTMLButtonElement){
+   event.preventDefault();
+   setEditingText(false);
+   svg.current?.focus({preventScroll:true});
+  }
+  const bounds=moving.map(item=>elementBounds(item,pageWidth));
+  gesture.current={
+   kind:resize?'resize-text':'move',pointerId:event.pointerId,items:moving,start:point(event),before:content,
+   pageId:current.id, bounds:{
+    minX:Math.min(...bounds.map(b=>b.minX)),minY:Math.min(...bounds.map(b=>b.minY)),
+    maxX:Math.max(...bounds.map(b=>b.maxX)),maxY:Math.max(...bounds.map(b=>b.maxY)),
+   },
+  };
+  event.currentTarget.setPointerCapture(event.pointerId);
+ }
+ function adjustTextBox(event:KeyboardEvent<HTMLButtonElement>,resize=false){
+  if(!textLayout||busy||gesture.current)return;
+  const directions:Record<string,[number,number]>={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+  const direction=directions[event.key];
+  if(!direction||(resize&&!direction[0]))return;
+  event.preventDefault();
+  const step=event.shiftKey?24:6;
+  const [dx,dy]=direction.map(value=>value*step);
+  if(resize){
+   updateSelected({boxWidth:Math.min(Math.max(48,pageWidth-element.x),Math.max(48,textLayout.width+dx))});
+  }else{
+   updateSelected({
+    x:Math.max(0,Math.min(Math.max(0,pageWidth-textLayout.width),element.x+dx)),
+    y:Math.max(element.fontSize,Math.min(Math.max(element.fontSize,pageHeight-textLayout.height+element.fontSize),element.y+dy)),
+   });
+  }
+ }
  function down(event:PointerEvent){if(busy||event.button!==0)return;if(gesture.current)return;const p=point(event),target=(event.target as SVGElement).closest('[data-element]')?.getAttribute('data-element');
   if(tool==='pan'){const parent=scroller.current!;gesture.current={kind:'pan',pointerId:event.pointerId,x:event.clientX,y:event.clientY,left:parent.scrollLeft,top:parent.scrollTop};event.currentTarget.setPointerCapture(event.pointerId);return;}
   if(tool==='lasso'){
@@ -101,12 +134,7 @@ function NotebookEditor({note,onSaved}:{note:any;onSaved:(note:any)=>void}){
    const moving=target&&group.includes(target)?selectedItems:e?[e]:[];
    if(moving.length<2){setGroup([]);setSelected(target??null);}
    if(moving.length){
-    const bounds=moving.map(elementBounds);
-    gesture.current={kind:'move',pointerId:event.pointerId,items:moving,start:p,before:content,bounds:{
-     minX:Math.min(...bounds.map((b:any)=>b.minX)),minY:Math.min(...bounds.map((b:any)=>b.minY)),
-     maxX:Math.max(...bounds.map((b:any)=>b.maxX)),maxY:Math.max(...bounds.map((b:any)=>b.maxY)),
-    }};
-    event.currentTarget.setPointerCapture(event.pointerId);
+    beginTextOrObjectDrag(event,moving);
    }
    return;
   }
@@ -142,12 +170,18 @@ function NotebookEditor({note,onSaved}:{note:any;onSaved:(note:any)=>void}){
   }
   const dx=p[0]-g.start[0],dy=p[1]-g.start[1];
   g.moved=g.moved||Math.abs(dx)+Math.abs(dy)>1;if(!g.moved)return;
+  if(g.kind==='resize-text'){
+   const item=g.items[0];
+   const boxWidth=Math.min(Math.max(48,pageWidth-item.x),Math.max(48,g.bounds.maxX-item.x+dx));
+   setContent((old:any)=>({...old,pages:old.pages.map((pge:any)=>pge.id===g.pageId?{...pge,elements:pge.elements.map((e:any)=>e.id===item.id?{...e,boxWidth}:e)}:pge)}));
+   return;
+  }
   const shiftX=Math.max(Math.min(0,-g.bounds.minX),Math.min(Math.max(0,pageWidth-g.bounds.maxX),dx));
   const shiftY=Math.max(Math.min(0,-g.bounds.minY),Math.min(Math.max(0,pageHeight-g.bounds.maxY),dy));
   const translated=new Map(g.items.map((item:any)=>[item.id,item.kind==='stroke'?{
    ...item,points:item.points.map(([x,y]:number[])=>[Math.max(0,Math.min(pageWidth,x+shiftX)),Math.max(0,Math.min(pageHeight,y+shiftY))]),
   }:{...item,x:Math.max(0,Math.min(pageWidth,item.x+shiftX)),y:Math.max(0,Math.min(pageHeight,item.y+shiftY))}]));
-  setContent((old:any)=>({...old,pages:old.pages.map((pge:any)=>pge.id===current.id?{...pge,elements:pge.elements.map((item:any)=>translated.get(item.id)??item)}:pge)}));
+  setContent((old:any)=>({...old,pages:old.pages.map((pge:any)=>pge.id===g.pageId?{...pge,elements:pge.elements.map((item:any)=>translated.get(item.id)??item)}:pge)}));
  }
  const [stroke,setStroke]=useState<any>(null),[shape,setShape]=useState('rectangle');
  function end(event:PointerEvent){const g=gesture.current;if(!g||g.pointerId!==event.pointerId)return;gesture.current=null;setGestureVersion(v=>v+1);setStroke(null);setDraftNotice('');if(g.kind==='pan')return;
@@ -156,7 +190,7 @@ function NotebookEditor({note,onSaved}:{note:any;onSaved:(note:any)=>void}){
    if(g.points.length<3)return;
    const ids=current.elements.filter((item:any)=>{
     if(item.kind==='stroke')return item.points.some((p:number[])=>insideLasso(p,g.points));
-    const b=elementBounds(item);return insideLasso([(b.minX+b.maxX)/2,(b.minY+b.maxY)/2],g.points);
+    const b=elementBounds(item,pageWidth);return insideLasso([(b.minX+b.maxX)/2,(b.minY+b.maxY)/2],g.points);
    }).map((item:any)=>item.id);
    if(ids.length===1)setSelected(ids[0]);else setGroup(ids);
    setTool('select');return;
@@ -211,23 +245,47 @@ function NotebookEditor({note,onSaved}:{note:any;onSaved:(note:any)=>void}){
  {error&&<div className="studio-notice" role="alert">{error}<button className="studio-button ml-3" disabled={busy} onClick={()=>void save(true)}>Save as new notebook</button></div>}{draft&&<div className="studio-notice">A local draft is available.<div className="studio-actions"><button className="studio-button" onClick={()=>{setContent(draft.content);setTitle(draft.title);if(Number.isInteger(draft.revision)&&draft.revision>0)setRevision(draft.revision);setDraft(null);setDraftNotice('Draft restored. Save to sync it.')}}>Restore local draft</button><button className="studio-button" onClick={()=>{setDraft(null);try{localStorage.removeItem(draftKey)}catch{}setDraftNotice('')}}>Keep saved version</button></div></div>}
  {pdfImport&&<NotebookPdfPicker busy={busy} onFile={f=>void insertPdf(f)} onExisting={a=>void existingPdf(a)} onClose={()=>setPdfImport(false)}/>}
  <div className="notebook-editor-body"><nav className="notebook-page-rail" aria-label="Notebook pages">{content.pages.map((p:any,i:number)=><button type="button" key={p.id} aria-label={`Go to page ${i+1}: ${p.name}`} disabled={busy} aria-current={p.id===current.id?'page':undefined} onClick={()=>{setPage(i);setSelected(null);setGroup([]);setEditingText(false);setDeletePage(false)}}><span className="notebook-page-mini" data-paper={p.paper} data-tone={p.tone}>{p.background?'PDF · '+p.background.sourcePage:(papers.find(([value])=>value===p.paper)?.[1]??'Blank')}<br/>{p.elements.length} annotations</span><span>{i+1} · {p.name}</span></button>)}</nav><div className="notebook-editor-main">
- <div className="studio-toolbar" aria-label="Notebook tools">{[['pan','Pan',Hand],['select','Select',MousePointer2],['lasso','Lasso',Lasso],['pen','Pen',PenLine],['highlight','Highlighter',Highlighter],['text','Text',Type],['shape','Shapes',Shapes],['erase','Eraser',Eraser]].map(([value,label,Icon]:any)=><button type="button" className="studio-button" key={value} disabled={busy} aria-pressed={tool===value} onClick={()=>{setTool(value);if(value==='highlight'){setColor('#e8c44a');setWidth(24)}else if((value==='pen'||value==='shape')&&width>8){setColor('#8e4a55');setWidth(3)}}}><Icon size={15}/>{label}</button>)}{tool==='shape'&&<label>Shape<select aria-label="Shape type" value={shape} onChange={e=>setShape(e.target.value)}><option value="rectangle">Rectangle</option><option value="ellipse">Ellipse</option><option value="line">Line</option></select></label>}<label>Ink<input type="color" aria-label="Ink color" disabled={busy} value={color} onChange={e=>{setColor(e.target.value);if(element?.kind==='text')updateSelected({color:e.target.value})}}/></label><div className="notebook-color-dots">{[['Plum','#8e4a55'],['Rose','#b38585'],['Blue','#376b9b'],['Green','#3a7257'],['Yellow','#e8c44a']].map(([name,ink])=><button type="button" key={ink} disabled={busy} aria-label={name+' ink'} aria-pressed={color===ink} style={{background:ink}} onClick={()=>{setColor(ink);if(element?.kind==='text')updateSelected({color:ink})}}/>)}</div><label>Width<select aria-label="Pen width" disabled={busy} value={width} onChange={e=>setWidth(Number(e.target.value))}>{(tool==='highlight'||width>8?[12,18,24,36]:[2,3,5,8]).map(n=><option key={n}>{n}</option>)}</select></label><button className="studio-icon" aria-label="Undo" disabled={busy||!history.length} onClick={undo}><Undo2 size={16}/></button><button className="studio-icon" aria-label="Redo" disabled={busy||!future.length} onClick={redo}><Redo2 size={16}/></button><button className="studio-button" disabled={busy||current.elements.length>=500} onClick={()=>imageInput.current?.click()}><ImagePlus size={16}/>Add image</button><label>Zoom<select aria-label="Canvas zoom" value={zoom} onChange={e=>setZoom(Number(e.target.value))}><option value={0}>Fit width</option>{[.25,.5,.75,1,1.25,1.5,2].map(z=><option value={z} key={z}>{z*100}%</option>)}</select></label></div>
+ <div className="studio-toolbar" aria-label="Notebook tools"><button className="studio-button" disabled={busy||!history.length} onClick={undo}><Undo2 size={16}/>Undo</button><button className="studio-button" disabled={busy||!future.length} onClick={redo}><Redo2 size={16}/>Redo</button>{[['pan','Pan',Hand],['select','Select',MousePointer2],['lasso','Lasso',Lasso],['pen','Pen',PenLine],['highlight','Highlighter',Highlighter],['text','Text',Type],['shape','Shapes',Shapes],['erase','Eraser',Eraser]].map(([value,label,Icon]:any)=><button type="button" className="studio-button" key={value} disabled={busy} aria-pressed={tool===value} onClick={()=>{setTool(value);if(value==='highlight'){setColor('#e8c44a');setWidth(24)}else if((value==='pen'||value==='shape')&&width>8){setColor('#8e4a55');setWidth(3)}}}><Icon size={15}/>{label}</button>)}{tool==='shape'&&<label>Shape<select aria-label="Shape type" value={shape} onChange={e=>setShape(e.target.value)}><option value="rectangle">Rectangle</option><option value="ellipse">Ellipse</option><option value="line">Line</option></select></label>}<label>Ink<input type="color" aria-label="Ink color" disabled={busy} value={color} onChange={e=>{setColor(e.target.value);if(element?.kind==='text')updateSelected({color:e.target.value})}}/></label><div className="notebook-color-dots">{[['Plum','#8e4a55'],['Rose','#b38585'],['Blue','#376b9b'],['Green','#3a7257'],['Yellow','#e8c44a']].map(([name,ink])=><button type="button" key={ink} disabled={busy} aria-label={name+' ink'} aria-pressed={color===ink} style={{background:ink}} onClick={()=>{setColor(ink);if(element?.kind==='text')updateSelected({color:ink})}}/>)}</div><label>Width<select aria-label="Pen width" disabled={busy} value={width} onChange={e=>setWidth(Number(e.target.value))}>{(tool==='highlight'||width>8?[12,18,24,36]:[2,3,5,8]).map(n=><option key={n}>{n}</option>)}</select></label><button className="studio-button" disabled={busy||current.elements.length>=500} onClick={()=>imageInput.current?.click()}><ImagePlus size={16}/>Add image</button><label>Zoom<select aria-label="Canvas zoom" value={zoom} onChange={e=>setZoom(Number(e.target.value))}><option value={0}>Fit width</option>{[.25,.5,.75,1,1.25,1.5,2].map(z=><option value={z} key={z}>{z*100}%</option>)}</select></label></div>
  <div ref={scroller} className="studio-canvas-scroll"><div className="notebook-paper" data-paper={current.paper} data-tone={current.tone} style={{width:pageWidth*scale,height:pageHeight*scale,'--notebook-paper-spacing':`${32*scale}px`} as CSSProperties}>{current.background&&<NotebookPdfPage assetId={current.background.assetId} sourcePage={current.background.sourcePage} width={pageWidth*scale} height={pageHeight*scale} owner={note.owner_id}/>}<svg ref={svg} viewBox={`0 0 ${pageWidth} ${pageHeight}`} width={pageWidth*scale} height={pageHeight*scale} className="studio-canvas" style={{touchAction:tool==='pan'?'pan-x pan-y':'none',cursor:tool==='pan'?'grab':tool==='select'?'default':'crosshair'}} aria-label="Notebook drawing canvas" role="img" tabIndex={0} onKeyDown={e=>{if(e.key==='Escape'){setSelected(null);setGroup([]);}if((e.key==='Delete'||e.key==='Backspace')&&(selected||group.length)){e.preventDefault();removeSelection();}}} onClick={event=>{if(!busy&&tool==='text'){const [x,y]=point(event);addText(x,y);}}} onDoubleClick={event=>{
   const id=(event.target as SVGElement).closest('[data-element]')?.getAttribute('data-element');
-  if(!busy&&tool==='select'&&current.elements.some((item:any)=>item.id===id&&item.kind==='text')){setSelected(id??null);editText();}
+  const [x,y]=point(event);
+  const hit=current.elements.findLast((item:any)=>{
+   if(item.kind!=='text')return false;
+   const b=elementBounds(item,pageWidth);
+   return item.id===id||(x>=b.minX&&x<=b.maxX&&y>=b.minY&&y<=b.maxY);
+  });
+  if(!busy&&tool==='select'&&hit){setSelected(hit.id);editText();}
  }} onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
- {current.elements.map((e:any)=>e.kind==='stroke'?<polyline key={e.id} data-element={e.id} points={e.points.map((p:any)=>p.join(',')).join(' ')} stroke={e.color} strokeWidth={e.width} opacity={e.opacity} fill="none" strokeLinecap="round" strokeLinejoin="round"/>:e.kind==='image'?<image key={e.id} data-element={e.id} href={assetUrl(e.assetId)} x={e.x} y={e.y} width={e.w} height={e.h} preserveAspectRatio="xMidYMid meet"/>:<text key={e.id} data-element={e.id} x={e.x} y={e.y} fill={e.color} fontSize={e.fontSize} fontFamily="Arial, sans-serif" opacity={editingText&&e.id===selected?0:e.text?1:.5}>{(e.text||'Type here').split('\n').map((line:string,n:number)=><tspan key={n} x={e.x} dy={n===0?0:e.fontSize*1.3}>{line||' '}</tspan>)}</text>)}
+ {current.elements.map((e:any)=>e.kind==='stroke'?<polyline key={e.id} data-element={e.id} points={e.points.map((p:any)=>p.join(',')).join(' ')} stroke={e.color} strokeWidth={e.width} opacity={e.opacity} fill="none" strokeLinecap="round" strokeLinejoin="round"/>:e.kind==='image'?<image key={e.id} data-element={e.id} href={assetUrl(e.assetId)} x={e.x} y={e.y} width={e.w} height={e.h} preserveAspectRatio="xMidYMid meet"/>:(()=>{
+  const layout=notebookTextLayout(e,pageWidth);
+  return <g key={e.id} data-element={e.id}>
+   <rect x={e.x} y={layout.top} width={layout.width} height={layout.height} fill="transparent"/>
+   {!(editingText&&e.id===selected)&&<text x={e.x} y={e.y} fill={e.color} fontSize={e.fontSize} fontFamily="Arial, sans-serif" opacity={e.text?1:.5} xmlSpace="preserve">{(e.text?layout.lines:['Type here']).map((line,n)=><tspan key={n} x={e.x} dy={n===0?0:layout.lineHeight}>{line||' '}</tspan>)}</text>}
+  </g>;
+ })())}
  {lassoPath.length>1&&<polyline points={lassoPath.map(p=>p.join(',')).join(' ')} fill="none" stroke="#803f4b" strokeWidth={2/scale} strokeDasharray={`${5/scale} ${4/scale}`} pointerEvents="none"/>}
- {selectedItems.map((item:any)=>{const b=elementBounds(item);return <rect key={item.id} x={b.minX-3} y={b.minY-3} width={Math.max(6,b.maxX-b.minX+6)} height={Math.max(6,b.maxY-b.minY+6)} fill="none" stroke="#803f4b" strokeDasharray="5 4" pointerEvents="none"/>})}
- {stroke&&<polyline points={stroke.points.map((p:any)=>p.join(',')).join(' ')} stroke={stroke.color} strokeWidth={stroke.width} opacity={stroke.opacity} fill="none" strokeLinecap="round"/>}{element?.kind==='stroke'&&<polyline points={element.points.map((p:any)=>p.join(',')).join(' ')} stroke="#803f4b" strokeWidth={element.width+4} opacity={.45} fill="none" strokeDasharray="6 5" pointerEvents="none"/>}{element&&element.kind!=='stroke'&&<rect x={element.x-4} y={element.y-(element.kind==='text'?element.fontSize:4)} width={element.kind==='image'?element.w+8:300} height={element.kind==='image'?element.h+8:element.fontSize*1.4} fill="none" stroke="#8e4a55" strokeDasharray="5 4" pointerEvents="none"/>}
- </svg>{editingText&&element?.kind==='text'&&<textarea
-  className="notebook-inline-text" aria-label="Edit canvas text" autoFocus readOnly={busy}
-  style={{left:Math.min(Math.max(0,pageWidth*scale-125),element.x*scale),top:Math.max(0,(element.y-element.fontSize)*scale),width:Math.max(125,Math.min(340,pageWidth*scale-element.x*scale)),fontSize:Math.max(12,element.fontSize*scale),color:element.color}}
-  value={element.text} maxLength={20000} placeholder="Type here"
-  rows={Math.min(8,Math.max(2,element.text.split('\n').length))}
-  onChange={e=>updateSelected({text:e.target.value})} onBlur={()=>setEditingText(false)}
-  onKeyDown={e=>{if(e.key==='Escape')e.currentTarget.blur();}}
- />}</div></div><div className="studio-inspector">{group.length?<><span>{group.length} items selected</span><button className="studio-button ml-3" disabled={busy} onClick={removeSelection}>Remove selected</button></>:element?<><p className="studio-eyebrow">Selected {element.kind}</p>{element.kind==='text'&&<><button className="studio-button" disabled={busy} onClick={editText}>Edit text</button><label className="studio-muted">Text size <select aria-label="Text size" disabled={busy} value={element.fontSize} onChange={e=>updateSelected({fontSize:Number(e.target.value)})}>{[16,20,24,32,40,48].map(n=><option key={n}>{n}</option>)}</select></label></>}{element.kind==='image'&&<label className="studio-muted">Image width <input type="range" aria-label="Image width" disabled={busy} min={50} max={pageWidth} value={element.w} onChange={e=>{const w=Number(e.target.value);updateSelected({w,h:Math.min(pageHeight,w*element.h/element.w)})}}/></label>}<button className="studio-button ml-3" disabled={busy} onClick={removeSelection}>Remove selected</button></>:<p className="studio-muted">Select any mark to move or remove it. Choose Text and tap the page to place a note.</p>}</div>
+ {selectedItems.map((item:any)=>{const b=elementBounds(item,pageWidth);return <rect key={item.id} x={b.minX-3} y={b.minY-3} width={Math.max(6,b.maxX-b.minX+6)} height={Math.max(6,b.maxY-b.minY+6)} fill="none" stroke="#803f4b" strokeDasharray="5 4" pointerEvents="none"/>})}
+ {stroke&&<polyline points={stroke.points.map((p:any)=>p.join(',')).join(' ')} stroke={stroke.color} strokeWidth={stroke.width} opacity={stroke.opacity} fill="none" strokeLinecap="round"/>}{element?.kind==='stroke'&&<polyline points={element.points.map((p:any)=>p.join(',')).join(' ')} stroke="#803f4b" strokeWidth={element.width+4} opacity={.45} fill="none" strokeDasharray="6 5" pointerEvents="none"/>}{element?.kind==='image'&&<rect x={element.x-4} y={element.y-4} width={element.w+8} height={element.h+8} fill="none" stroke="#8e4a55" strokeDasharray="5 4" pointerEvents="none"/>}
+ </svg>{tool==='select'&&textLayout&&<div className="notebook-text-box" style={{
+  left:element.x*scale,top:Math.max(0,textLayout.top*scale),
+  width:textLayout.width*scale,height:Math.min(pageHeight-Math.max(0,textLayout.top),textLayout.height)*scale,
+ }}>
+  {editingText&&<textarea
+   className="notebook-inline-text" aria-label="Edit canvas text" autoFocus readOnly={busy}
+   style={{fontSize:element.fontSize*scale,color:element.color}}
+   value={element.text} maxLength={20000} placeholder="Type here"
+   onChange={e=>updateSelected({text:e.target.value})} onBlur={()=>setEditingText(false)}
+   onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();svg.current?.focus({preventScroll:true});}}}
+  />}
+  <div className="notebook-text-controls" data-inset={textLayout.top*scale<38} style={{left:Math.min(0,Math.max(-element.x*scale,(pageWidth-element.x)*scale-130))}}>
+   <button type="button" title="Drag to move text box" aria-label="Move text box" disabled={busy} className="notebook-text-drag"
+    onKeyDown={event=>adjustTextBox(event)} onPointerDown={event=>beginTextOrObjectDrag(event,[element])} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}><Move size={16}/></button>
+   <button type="button" disabled={busy} onClick={editText}>Edit</button>
+   <button type="button" title="Delete text box" aria-label="Delete text box" disabled={busy} onClick={removeSelection}><Trash2 size={16}/></button>
+  </div>
+  <button type="button" title="Drag to resize text box" aria-label="Resize text box" disabled={busy} className="notebook-text-resize"
+   onKeyDown={event=>adjustTextBox(event,true)} onPointerDown={event=>beginTextOrObjectDrag(event,[element],true)} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}><ArrowLeftRight size={15}/></button>
+ </div>}</div></div><div className="studio-inspector">{group.length?<><span>{group.length} items selected</span><button className="studio-button ml-3" disabled={busy} onClick={removeSelection}>Remove selected</button></>:element?<><p className="studio-eyebrow">Selected {element.kind}</p>{element.kind==='text'&&<><button className="studio-button" disabled={busy} onClick={editText}>Edit text</button><label className="studio-muted">Text size <select aria-label="Text size" disabled={busy} value={element.fontSize} onChange={e=>updateSelected({fontSize:Number(e.target.value)})}>{[16,20,24,32,40,48].map(n=><option key={n}>{n}</option>)}</select></label></>}{element.kind==='image'&&<label className="studio-muted">Image width <input type="range" aria-label="Image width" disabled={busy} min={50} max={pageWidth} value={element.w} onChange={e=>{const w=Number(e.target.value);updateSelected({w,h:Math.min(pageHeight,w*element.h/element.w)})}}/></label>}<button className="studio-button ml-3" disabled={busy} onClick={removeSelection}>Remove selected</button></>:<p className="studio-muted">Choose Text and tap the page to type. Use Select to move, resize, or delete a text box.</p>}</div>
  <div className="notebook-page-actions">{!current.background&&<><label>Paper <select aria-label="Page template" disabled={busy} value={current.paper??'blank'} onChange={e=>commit({...content,pages:content.pages.map((p:any)=>p.id===current.id?{...p,paper:e.target.value}:p)})}>{papers.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label>Color <select aria-label="Page color" disabled={busy} value={current.tone??'white'} onChange={e=>commit({...content,pages:content.pages.map((p:any)=>p.id===current.id?{...p,tone:e.target.value}:p)})}>{paperColors.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label></>}<button className="studio-button" disabled={busy} onClick={()=>fileInput.current?.click()}>Import text notes</button><span className="studio-muted">Page {pageIndex+1} of {content.pages.length}{current.background?' · PDF source page '+current.background.sourcePage:' · Blank page'}</span><button className="studio-button" disabled={busy||content.pages.length>=MAX_NOTEBOOK_PAGES} onClick={()=>insertBlank(pageIndex)}>Blank before</button><button className="studio-button" disabled={busy||content.pages.length>=MAX_NOTEBOOK_PAGES} onClick={()=>insertBlank(pageIndex+1)}><Plus size={15}/>Blank after</button><button className="studio-button" disabled={busy||content.pages.length>=MAX_NOTEBOOK_PAGES} onClick={()=>setPdfImport(true)}><Upload size={15}/>Add PDF pages</button><button className="studio-icon" aria-label="Move page earlier" disabled={pageIndex===0||busy} onClick={()=>movePage(pageIndex-1)}><ArrowUp size={16}/></button><button className="studio-icon" aria-label="Move page later" disabled={pageIndex===content.pages.length-1||busy} onClick={()=>movePage(pageIndex+1)}><ArrowDown size={16}/></button><button className="studio-button" disabled={busy||content.pages.length>=MAX_NOTEBOOK_PAGES} onClick={duplicatePage}>Duplicate page</button><button className="studio-button" disabled={content.pages.length===1||busy} onClick={()=>setDeletePage(true)}>Delete page</button></div>{deletePage&&<div className="studio-notice">Delete this notebook page and its annotations? The uploaded source PDF stays unchanged.<div className="studio-actions"><button className="studio-button" onClick={()=>{commit({...content,pages:content.pages.filter((p:any)=>p.id!==current.id)});setPage(Math.max(0,pageIndex-1));setDeletePage(false)}}>Delete this page</button><button className="studio-button" onClick={()=>setDeletePage(false)}>Keep page</button></div></div>}
  </div></div><div className="notebook-editor-notes">
  <label className="studio-field">Typed notes<textarea aria-label="Typed notebook notes" disabled={busy} value={content.body} maxLength={100000} onChange={e=>setContent({...content,body:e.target.value})} placeholder="Type additional notes here. This text can also become an audio recap."/></label><p className="studio-muted">{draftNotice||'Changes sync automatically when you pause. A local draft helps recover unsaved edits.'}</p>{(content.attachments??[]).map((a:any)=><p className="studio-muted" key={a.id}><a className="underline" href={assetUrl(a.id)} target="_blank" rel="noopener noreferrer">{a.name}</a> · Original file in My Uploads{a.name.toLowerCase().endsWith('.pdf')&&<button className="studio-button ml-2" disabled={busy||content.pages.length>=MAX_NOTEBOOK_PAGES} onClick={()=>void existingPdf(a)}>Insert these PDF pages</button>}</p>)}
