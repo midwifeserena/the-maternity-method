@@ -193,3 +193,38 @@
   cursor: nwse-resize;
   touch-action: none;
 }
+
+.notebook-tool-row { display: contents; }
+
+@container (max-width: 720px) {
+  .notebook-editor-main .studio-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+    padding: 6px 8px;
+  }
+  .notebook-tool-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 4px;
+    scrollbar-width: thin;
+  }
+  .notebook-tool-row > * { flex: none; white-space: nowrap; }
+  .notebook-editor-main .studio-toolbar .studio-button { min-height: 44px; }
+  .notebook-page-rail { padding: 8px; }
+}
+@media (pointer: coarse) {
+  .notebook-editor-main .studio-toolbar .studio-button { min-height: 44px; }
+  .notebook-text-controls button,.notebook-text-resize,.notebook-image-resize {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.notebook-editor-top .studio-saved {
+  min-inline-size: 8.5rem;
+  white-space: nowrap;
+}
