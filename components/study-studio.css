@@ -6,7 +6,12 @@
 
 .studio-sheets-header {
   padding: clamp(18px, 3vw, 32px);
-  background: #f1d9d7;
-  border: 2px solid #b38585;
+  background: var(--color-mauve);
+  border: 2px solid var(--color-mauve);
+  color: #fff9f2;
   border-radius: 18px;
+}
+
+.studio-sheets-header :is(.studio-eyebrow, .studio-muted) {
+  color: #fff9f2;
 }
