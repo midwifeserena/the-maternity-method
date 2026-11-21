@@ -74,20 +74,27 @@ $$;
 revoke all on function public.start_exam_review_attempt(uuid[],text,text,text) from public, anon;
 grant execute on function public.start_exam_review_attempt(uuid[],text,text,text) to authenticated;
 
-alter function public.save_lesson_progress(uuid,integer,text,boolean,integer,integer) set schema course_access_private;
-revoke all on function course_access_private.save_lesson_progress(uuid,integer,text,boolean,integer,integer) from public, anon, authenticated;
-create function public.save_lesson_progress(
- p_lesson_id uuid,p_revision integer,p_notes text,p_completed boolean,p_position integer,p_duration integer
-) returns jsonb language plpgsql security definer set search_path='' as $$
+-- Older projects may not have installed video lesson progress.
+do $optional$
 begin
- if auth.uid() is null or not public.has_course_access() then
-  raise exception 'Course access required' using errcode='42501';
+ if to_regprocedure('public.save_lesson_progress(uuid,integer,text,boolean,integer,integer)') is not null then
+  alter function public.save_lesson_progress(uuid,integer,text,boolean,integer,integer) set schema course_access_private;
+  revoke all on function course_access_private.save_lesson_progress(uuid,integer,text,boolean,integer,integer) from public, anon, authenticated;
+  create function public.save_lesson_progress(
+   p_lesson_id uuid,p_revision integer,p_notes text,p_completed boolean,p_position integer,p_duration integer
+  ) returns jsonb language plpgsql security definer set search_path='' as $$
+  begin
+   if auth.uid() is null or not public.has_course_access() then
+    raise exception 'Course access required' using errcode='42501';
+   end if;
+   return course_access_private.save_lesson_progress(p_lesson_id,p_revision,p_notes,p_completed,p_position,p_duration);
+  end;
+  $$;
+  revoke all on function public.save_lesson_progress(uuid,integer,text,boolean,integer,integer) from public, anon;
+  grant execute on function public.save_lesson_progress(uuid,integer,text,boolean,integer,integer) to authenticated;
  end if;
- return course_access_private.save_lesson_progress(p_lesson_id,p_revision,p_notes,p_completed,p_position,p_duration);
 end;
-$$;
-revoke all on function public.save_lesson_progress(uuid,integer,text,boolean,integer,integer) from public, anon;
-grant execute on function public.save_lesson_progress(uuid,integer,text,boolean,integer,integer) to authenticated;
+$optional$;
 
 notify pgrst, 'reload schema';
 commit;
