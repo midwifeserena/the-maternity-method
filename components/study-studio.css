@@ -7,3 +7,7 @@
 .studio-sheets-header :is(.studio-eyebrow, .studio-muted) {
   color: #fff9f2;
 }
+
+.studio-card.studio-tool-card {
+  border: 2px solid var(--color-rose);
+}
