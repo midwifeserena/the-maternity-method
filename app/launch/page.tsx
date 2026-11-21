@@ -118,6 +118,7 @@ export default function LaunchPage() {
           <a href="#inside">What’s inside</a>
           <a href="#about">Meet Serena</a>
           <a href="#faq">FAQ</a>
+          <a href="/login">Tester sign-in</a>
           <a className={styles.button} href="#launch">
             Join the launch list
           </a>

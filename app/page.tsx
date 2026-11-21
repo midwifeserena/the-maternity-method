@@ -1,2 +1,5 @@
-import LandingPage from '@/components/landing-page';
-export default function Page(){return <LandingPage/>}
+import {redirect} from 'next/navigation';
+
+export default function Page(){
+ redirect('/launch');
+}
