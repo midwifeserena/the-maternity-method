@@ -7,9 +7,10 @@ const categories:('All'|Category)[]=['All','Antepartum','Intrapartum','Postpartu
 const titles:Record<string,string>={'dashboard':'Your learning, beautifully focused.','question-bank':'Question Bank','create-exam':'Build your next exam','previous-tests':'Previous Tests','ngn-case-studies':'NGN Case Studies','video-lessons':'Video Lessons','study-guides':'Study Guides','flashcards':'Flashcards','performance':'Your performance','account':'Your account'};
 function Header({section}:{section:string}){
  const dashboard=section==='dashboard';
- const useMauveHeader=dashboard||section==='performance'||section==='create-exam';
- return <header className={dashboard?'mauve-page-header mb-6 shadow-md':useMauveHeader?'mb-9 mauve-page-header':'mb-9'}>
-  <div className={'uppercase tracking-[.28em] font-bold text-[11px]'+(dashboard?' inline-flex rounded-full bg-[#FFF9F2] px-3 py-1.5 text-mauve':useMauveHeader?'':' text-mauve')}>The Maternity Method</div>
+ const useBrandedHeader=dashboard||section==='question-bank';
+ const useMauveHeader=useBrandedHeader||section==='performance'||section==='create-exam';
+ return <header className={useBrandedHeader?'mauve-page-header mb-6 shadow-md':useMauveHeader?'mb-9 mauve-page-header':'mb-9'}>
+  <div className={'uppercase tracking-[.28em] font-bold text-[11px]'+(useBrandedHeader?' inline-flex rounded-full bg-[#FFF9F2] px-3 py-1.5 text-mauve':useMauveHeader?'':' text-mauve')}>The Maternity Method</div>
   <h1 className="text-4xl md:text-[48px] leading-tight mt-5">{titles[section]}</h1>
   <p className={'mt-3 text-sm md:text-base'+(useMauveHeader?'':' text-espresso/65')}>{dashboard?'A calm home for making maternity make sense.':section==='account'?'Your profile and learning access.':'Thoughtful nursing education, one clear concept at a time.'}</p>
  </header>;
