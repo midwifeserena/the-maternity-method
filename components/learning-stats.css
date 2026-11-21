@@ -3,3 +3,13 @@
 .learning-stats[data-view="performance"] .stats-card {
   border: 2px solid var(--color-rose);
 }
+
+.learning-stats[data-view="dashboard"] .stats-summary .stats-card {
+  background: #fff9f2;
+  border-color: #e9d6ca;
+}
+
+.learning-stats[data-view="dashboard"] .stats-banner {
+  background: #e9dcd0;
+  border-color: #e1cec2;
+}

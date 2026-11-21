@@ -4,7 +4,7 @@ import {useState, type FormEvent} from 'react';
 import {Heart, Pencil} from 'lucide-react';
 import {createClient} from '@/lib/supabase/client';
 
-export function StudentGreeting({initialName}:{initialName:string}){
+export function StudentGreeting({initialName,dashboard=false}:{initialName:string;dashboard?:boolean}){
  const [name,setName]=useState(initialName);
  const [draft,setDraft]=useState(initialName);
  const [editing,setEditing]=useState(false);
@@ -33,12 +33,12 @@ export function StudentGreeting({initialName}:{initialName:string}){
  }
 
  return <div className="min-w-0">
-  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-   <p className="font-display text-2xl text-espresso sm:text-3xl">
+  <div className={'flex flex-wrap items-center gap-x-3 gap-y-2'+(dashboard?' rounded-2xl bg-[#895f48] px-4 py-2 text-[#fff9f2] shadow-sm':'')}>
+   <p className={'font-display text-2xl sm:text-3xl'+(dashboard?'':' text-espresso')}>
     <span className="wrap-anywhere">{name?`Hello, ${name}`:'Welcome'}</span>{' '}
-    <Heart className="inline-block text-mauve" size={18} strokeWidth={1.6} aria-hidden="true"/>
+    <Heart className={dashboard?'inline-block':'inline-block text-mauve'} size={18} strokeWidth={1.6} aria-hidden="true"/>
    </p>
-   {!editing&&<button type="button" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-mauve hover:bg-blush" onClick={()=>{
+   {!editing&&<button type="button" className={'inline-flex min-h-10 items-center gap-1.5 px-2 text-sm font-semibold '+(dashboard?'rounded-full border border-white/55 hover:bg-white/15 focus-visible:outline-white':'rounded-lg text-mauve hover:bg-blush')} onClick={()=>{
     setDraft(name);setEditing(true);setError('');setAnnouncement('');
    }}><Pencil size={13} aria-hidden="true"/>{name?'Edit greeting':'What should we call you?'}</button>}
   </div>
