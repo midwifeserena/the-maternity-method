@@ -25,7 +25,7 @@ button:disabled {cursor:not-allowed;opacity:.55}
   color: #fff9f2;
   border-radius: 18px;
 }
-.surface.exam-history-card { border: 2px solid var(--color-rose); }
+.surface.exam-history-card, .surface.sign-in-card { border: 2px solid var(--color-rose); }
 .btn-primary {background:#8E4A55;color:#fff7ef;border-radius:999px;padding:11px 20px;font-weight:650}
 .btn-primary:hover {background:#773946}
 .btn-outline {border:1px solid #B38585;border-radius:999px;padding:10px 18px;color:#8E4A55;font-weight:600}

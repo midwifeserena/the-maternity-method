@@ -66,7 +66,7 @@ export default function Login(){
  }
 
  return <main className="min-h-screen flex items-center justify-center p-6">
-  <div className="surface w-full max-w-md p-6 shadow-xl shadow-espresso/5 sm:p-10">
+  <div className="surface sign-in-card w-full max-w-md p-6 shadow-xl shadow-espresso/5 sm:p-10">
    <div className="text-mauve tracking-[.25em] uppercase text-xs font-bold">The Maternity Method</div>
    <h1 className="text-4xl mt-5">Welcome back.</h1>
    <p className="mt-3 text-espresso/70">Invited testers can sign in with the email address on their invitation. Public enrollment opens January 11.</p>
