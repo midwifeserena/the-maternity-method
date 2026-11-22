@@ -2,16 +2,15 @@
 import {useEffect,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
 import Link from 'next/link';
-import {Activity,BookOpen,FileText,Headphones,NotebookPen,PlayCircle} from 'lucide-react';
+import {Activity,BookOpen,FileText,NotebookPen,PlayCircle} from 'lucide-react';
 import {StudyGuideLibrary} from './study-guide-library';
 import {studyGuideCatalog} from '@/lib/study-guide-catalog.mjs';
 import {StudioNotebook} from './studio-notebook';
 import {StudioAssets} from './studio-assets';
 import {FlashcardWorkspace} from './flashcard-workspace';
 import {StudioFlashcards} from './studio-flashcards';
-import {StudioPodcast} from './studio-podcast';
 import './study-studio.css';
-const cards=[{title:'Notebook',href:'/study-studio/notebook',Icon:NotebookPen,text:'Draw, type, arrange images, and keep your own notes in one place.'},{title:'Flashcards',href:'/study-studio/flashcards',Icon:BookOpen,text:'Make your own cards, then flip, learn or test yourself. Course cards stay available.'},{title:'Video Lessons',href:'/video-lessons',Icon:PlayCircle,text:'Return to your maternity lessons and turn new ideas into personal notes.'},{title:'Podcast',href:'/study-studio/podcast',Icon:Headphones,text:'Create a narrated audio recap from text you choose. No paid AI service.'},{title:'Study Sheets',href:'/study-studio/sheets',Icon:FileText,text:'Explore course cheat sheets or upload your own private PDFs, images and text.'},{title:'Fetal Tracing',href:'/study-studio/fetal-tracing',Icon:Activity,text:'Practice interpreting fetal monitor tracings with the NCC game.'}];
+const cards=[{title:'Notebook',href:'/study-studio/notebook',Icon:NotebookPen,text:'Draw, type, arrange images, and keep your own notes in one place.'},{title:'Flashcards',href:'/study-studio/flashcards',Icon:BookOpen,text:'Make your own cards, then flip, learn or test yourself. Course cards stay available.'},{title:'Video Lessons',href:'/video-lessons',Icon:PlayCircle,text:'Return to your maternity lessons and turn new ideas into personal notes.'},{title:'Study Sheets',href:'/study-studio/sheets',Icon:FileText,text:'Explore course cheat sheets or upload your own private PDFs, images and text.'},{title:'Fetal Tracing',href:'/study-studio/fetal-tracing',Icon:Activity,text:'Practice interpreting fetal monitor tracings with the NCC game.'}];
 export function StudyStudio({section='home'}:{section?:string}){
  const [owner,setOwner]=useState<string|null>(null),[ready,setReady]=useState(false);
  useEffect(()=>{let active=true;let unsubscribe:(()=>void)|undefined;const db=createClient();db.auth.getUser().then(({data:{user}})=>{if(!active)return;setOwner(user?.id??null);setReady(true);const sub=db.auth.onAuthStateChange?.((_event,session)=>{if(active)setOwner(session?.user?.id??null)});unsubscribe=()=>sub?.data.subscription.unsubscribe();}).catch(()=>{if(active)setReady(true)});return()=>{active=false;unsubscribe?.()};},[]);
@@ -31,7 +30,7 @@ function StudioContent({section='home'}:{section?:string}){
   {flashcards==='course'?<FlashcardWorkspace embedded/>:<StudioFlashcards/>}
  </div>;
  return <div className="studio"><header className={section==='home'||section==='sheets'?'studio-header mauve-page-header':'studio-header'}><p className="studio-eyebrow">The Maternity Method · Study Studio</p><h1>{title}</h1><p className="studio-muted">A personal space to make maternity make sense, in the way you learn best.</p>{section!=='home'&&<Link className="studio-button mt-4" href="/study-studio">All study tools</Link>}</header>
- {section==='home'&&<><div className="studio-grid">{cards.map(({title,href,Icon,text})=><article key={href} className="studio-card studio-tool-card"><Link href={href}><Icon size={27}/><h2 className="mt-6">{title}</h2><p className="studio-muted">{text}</p></Link></article>)}</div><p className="studio-notice">Your personal notes, flashcards and uploads belong to your account. Course resources stay available alongside them. Audio recaps use browser narration, with no paid AI service.</p></>}
- {section==='podcast'&&<StudioPodcast/>}{section==='sheets'&&<><nav className="studio-tabs" aria-label="Study sheet collection"><button type="button" className="studio-button" aria-pressed={sheets==='course'} onClick={()=>setSheets('course')}>Course sheets</button><button type="button" className="studio-button" aria-pressed={sheets==='personal'} onClick={()=>setSheets('personal')}>My uploads</button></nav>{sheets==='personal'?<StudioAssets/>:<StudyGuideLibrary guides={studyGuideCatalog}/>}</>}
+ {section==='home'&&<><div className="studio-grid">{cards.map(({title,href,Icon,text})=><article key={href} className="studio-card studio-tool-card"><Link href={href}><Icon size={27}/><h2 className="mt-6">{title}</h2><p className="studio-muted">{text}</p></Link></article>)}</div><p className="studio-notice">Your personal notes, flashcards and uploads belong to your account. Course resources stay available alongside them.</p></>}
+ {section==='sheets'&&<><nav className="studio-tabs" aria-label="Study sheet collection"><button type="button" className="studio-button" aria-pressed={sheets==='course'} onClick={()=>setSheets('course')}>Course sheets</button><button type="button" className="studio-button" aria-pressed={sheets==='personal'} onClick={()=>setSheets('personal')}>My uploads</button></nav>{sheets==='personal'?<StudioAssets/>:<StudyGuideLibrary guides={studyGuideCatalog}/>}</>}
  </div>;
 }

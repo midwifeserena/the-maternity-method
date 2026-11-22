@@ -1,3 +1,3 @@
-import {notFound} from 'next/navigation';
+import {notFound,redirect} from 'next/navigation';
 import {StudyStudio} from '@/components/study-studio';
-export default async function Page({params}:{params:Promise<{section:string}>}){const {section}=await params;if(!['notebook','flashcards','sheets','podcast'].includes(section))notFound();return <StudyStudio section={section}/>}
+export default async function Page({params}:{params:Promise<{section:string}>}){const {section}=await params;if(section==='podcast')redirect('/study-studio');if(!['notebook','flashcards','sheets'].includes(section))notFound();return <StudyStudio section={section}/>}

@@ -1,12 +1,12 @@
 'use client';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {LayoutDashboard,LibraryBig,PencilLine,History,ClipboardList,PlayCircle,FileText,PanelsTopLeft,ChartNoAxesCombined,UserRound,Menu,X,ChevronDown,NotebookPen,Headphones,BookOpen,Activity} from 'lucide-react';
+import {LayoutDashboard,LibraryBig,PencilLine,History,ClipboardList,PlayCircle,FileText,PanelsTopLeft,ChartNoAxesCombined,UserRound,Menu,X,ChevronDown,NotebookPen,BookOpen,Activity} from 'lucide-react';
 import {useState} from 'react';
 import Image from 'next/image';
 
 const studentResources=[['Account & Subscription','/account',UserRound]] as const;
-const studioLinks=[['Notebook','/study-studio/notebook',NotebookPen],['Flashcards','/study-studio/flashcards',BookOpen],['Video Lessons','/video-lessons',PlayCircle],['Podcast','/study-studio/podcast',Headphones],['Study Sheets','/study-studio/sheets',FileText],['Fetal Tracing','/study-studio/fetal-tracing',Activity]] as const;
+const studioLinks=[['Notebook','/study-studio/notebook',NotebookPen],['Flashcards','/study-studio/flashcards',BookOpen],['Video Lessons','/video-lessons',PlayCircle],['Study Sheets','/study-studio/sheets',FileText],['Fetal Tracing','/study-studio/fetal-tracing',Activity]] as const;
 const questionBankLinks=[['Create Exam','/create-exam',PencilLine],['NGN Case Studies','/ngn-case-studies',ClipboardList],['Previous Exams','/previous-tests',History],['Performance','/performance',ChartNoAxesCombined]] as const;
 const adminLinks=[['Admin Questions','/admin/questions',LibraryBig],['Admin NGN Case Studies','/admin/ngn',ClipboardList],['Admin Flashcard Studio','/admin/flashcards',PanelsTopLeft]] as const;
 const linkClass=(active:boolean)=>`flex items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-semibold ${active?'bg-blush text-mauve':'text-mauve hover:bg-blush/70'}`;
