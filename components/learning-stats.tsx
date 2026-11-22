@@ -3,6 +3,7 @@ import {useEffect,useState} from 'react';
 import Link from 'next/link';
 import {Activity,ArrowUpRight,CheckCircle2,Circle,ClipboardCheck,Clock3,Layers3,Target} from 'lucide-react';
 import {readinessProgress} from '@/lib/learning-analytics.mjs';
+import {PastQuestionBankPerformance} from './past-question-bank-performance';
 import './learning-stats.css';
 const pct=(value:number|null)=>value===null?'—':`${value}%`;
 const num=(value:number)=>value.toLocaleString('en-US');
@@ -35,6 +36,7 @@ export function LearningStats({view='performance'}:{view?:'dashboard'|'performan
  <section className="stats-card"><p className="stats-label">Peer comparisons</p><h2 className="mt-2">Percentile and peer timing</h2><p className="stats-muted mt-3">Not available yet. These require a reliable comparison cohort and a defined methodology. No percentile, peer average, or pass probability is estimated from your personal scores.</p></section></>}
  {tab==='subjects'&&<><section className="stats-card"><p className="stats-label">Subject performance</p><h2 className="mt-2">Know where to focus next</h2>{data.subjects.length?<><div className="stats-table-wrap mt-5"><table className="stats-table"><thead><tr><th>Subject</th><th>Recorded items</th><th>Points</th><th>Score</th><th>First-attempt score</th><th>Used / available</th></tr></thead><tbody>{[...data.subjects].sort((a,b)=>(a.percent??101)-(b.percent??101)).map(s=><tr key={s.category}><td><strong>{s.category}</strong></td><td>{s.questions}</td><td>{s.earned} / {s.possible}</td><td>{pct(s.percent)}</td><td>{pct(s.firstPercent)}</td><td>{s.used} / {s.total}</td></tr>)}</tbody></table></div><p className="stats-note">Subjects use archived question metadata when available, otherwise current bank metadata. Missing metadata stays Unclassified. Scores include partial credit. Subjects are ordered from the lowest available score to the highest.</p></>:<p className="stats-empty">Your subject breakdown appears after questions are answered.</p>}</section><section className="stats-card"><p className="stats-label">Question formats</p><h2 className="mt-2">Strength across every format</h2>{data.formats.map((f:any)=><div key={f.format} className="stats-subject"><div><span>{formatName(f.format)} · {f.count} items</span><strong>{pct(f.percent)}</strong></div><Progress value={f.percent}/></div>)}{!data.formats.length&&<p className="stats-empty">No question-format results yet.</p>}</section></>}
  {tab==='history'&&<History sessions={data.sessions}/>}
+ <PastQuestionBankPerformance/>
  <p className="stats-footer">Statistics reflect your saved sessions. NGN points include partial credit. Your original exam grades remain unchanged.</p>
  </>}
  </div>;

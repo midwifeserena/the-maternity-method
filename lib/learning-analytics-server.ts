@@ -4,6 +4,9 @@ import {missingReviewTable,type UserDatabase} from '@/lib/exam-review-server';
 // All reads use the authenticated client and retain RLS. Never select answer keys.
 async function pages(query:any){const rows:any[]=[];for(let start=0;;start+=500){const {data,error}=await query.range(start,start+499);if(error)throw error;rows.push(...data??[]);if((data?.length??0)<500)return rows;}}
 export async function loadLearningAnalytics(db:UserDatabase,userId:string){
+ return (await loadLearningAnalyticsWithAttempts(db,userId)).analytics;
+}
+export async function loadLearningAnalyticsWithAttempts(db:UserDatabase,userId:string){
  const warnings:string[]=[];
  const [attempts,questions]=await Promise.all([
   pages(db.from('exam_attempts').select('*').eq('user_id',userId).order('created_at').order('id')),
@@ -28,5 +31,5 @@ export async function loadLearningAnalytics(db:UserDatabase,userId:string){
    for(const row of rows){const q=row.question_snapshot??{};snapshots.push({attempt_id:row.attempt_id,question_id:row.question_id,category:q.category,type:q.type,ngn_format:q.ngn_format,case_context:q.case_context});}
   }catch(error){if(!missingReviewTable(error as any))throw error;warnings.push('Some older exams have no archived subject or format details.');}
  }
- return {...buildLearningAnalytics({attempts,responses,snapshots,bank}),warnings:[...new Set(warnings)]};
+ return {analytics:{...buildLearningAnalytics({attempts,responses,snapshots,bank}),warnings:[...new Set(warnings)]},attempts};
 }
