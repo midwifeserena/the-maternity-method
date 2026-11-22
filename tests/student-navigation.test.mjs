@@ -31,8 +31,8 @@ test('deep-linked exam reviews expand Question Bank and mark Previous Exams curr
 test('Study Studio groups personal tools and keeps course resource deep links current',()=>{
  for(const path of ['/study-studio/notebook','/study-studio/fetal-tracing','/flashcards','/study-guides','/video-lessons']){const markup=sidebarMarkup(path,false);assert(markup.includes('Study Studio'));assert(!markup.includes('id="study-studio-submenu" hidden'));for(const label of ['Notebook','Flashcards','Video Lessons','Podcast','Study Sheets','Fetal Tracing'])assert(markup.includes(label));assert(!markup.includes('Admin Questions'));}
 });
-test('Pediatrics has a separate entry in the Question Bank menu',()=>{
- const markup=sidebarMarkup('/pediatrics',false);
- assert.match(markup,/href="\/pediatrics"[^>]*aria-current="page"/);
- assert.match(markup,/Pediatrics Question Bank/);
+test('Create Exam is the shared Question Bank entry for all subjects',()=>{
+ const markup=sidebarMarkup('/create-exam',false);
+ assert.match(markup,/href="\/create-exam"[^>]*aria-current="page"/);
+ assert.doesNotMatch(markup,/href="\/pediatrics"|Pediatrics Question Bank/);
 });

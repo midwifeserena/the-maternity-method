@@ -11,8 +11,6 @@ export async function GET(request:NextRequest){
  if(category&&category!=='All'){
   if(!categories.some(value=>value===category))return NextResponse.json({error:'Invalid category'},{status:400});
   query=query.eq('category',category);
- }else{
-  query=query.in('category',categories.filter(value=>value!=='Pediatrics'));
  }
  // Stable pages include newly transferred items even in banks over 500 rows.
  const data:Record<string,unknown>[]=[];

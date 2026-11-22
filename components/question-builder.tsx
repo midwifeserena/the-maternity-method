@@ -5,30 +5,28 @@ import {isNgnQuestion} from '@/lib/ngn-standalone.mjs';
 import {completeExamCases,CASE_ITEM_COUNT,MAX_EXAM_ITEMS} from '@/lib/case-exam.mjs';
 import {planExamSelection} from '@/lib/exam-selection.mjs';
 import {Exam} from '@/components/exam';
-import type {Question,Category} from '@/lib/questions';
+import {categories as subjects,type Question,type Category} from '@/lib/questions';
 
 type Status='unused'|'incorrect'|'correct'|'omitted';
-const maternitySubjects:Category[]=['Antepartum','Intrapartum','Postpartum','Newborn'];
 const statusLabels:{key:Status;label:string}[]=[
   {key:'unused',label:'Unused'},{key:'incorrect',label:'Incorrect'},
   {key:'omitted',label:'Omitted'},{key:'correct',label:'Correct'}
 ];
 type Format='standard'|'ngn'|'cases';
 type CaseChoice={id:string;case_number:number;topic:string;intro:string};
-export function QuestionBuilder({initialMode='study',pediatric=false}:{initialMode?:'study'|'test';pediatric?:boolean}){
- const pillars:Category[]=pediatric?['Pediatrics']:maternitySubjects;
+export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'test'}){
  const [formats,setFormats]=useState<Format[]>(['standard']);
  const [allQuestions,setAllQuestions]=useState(false);
  const includeCases=formats.includes('cases'),includeStandalone=formats.some(format=>format!=='cases');
  const [cases,setCases]=useState<CaseChoice[]>([]);
  const [caseReady,setCaseReady]=useState(false),[caseLoading,setCaseLoading]=useState(true),[caseError,setCaseError]=useState(''),[reload,setReload]=useState(0);
- useEffect(()=>{if(pediatric)return;let active=true;setCaseLoading(true);setCaseError('');Promise.all([
+ useEffect(()=>{let active=true;setCaseLoading(true);setCaseError('');Promise.all([
   fetch('/api/ngn?formats=extended-v1',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();return r.json()}),
   fetch('/api/exams/capabilities',{cache:'no-store'}).then(async r=>r.ok?(await r.json()).caseExams===true:false).catch(()=>false)
- ]).then(([data,ready])=>{if(active){setCases(completeExamCases<CaseChoice>(data.cases??[],data.items??[]));setCaseReady(ready)}}).catch(()=>{if(active)setCaseError('Could not load the case library. Please try again.')}).finally(()=>{if(active)setCaseLoading(false)});return()=>{active=false};},[reload,pediatric]);
+ ]).then(([data,ready])=>{if(active){setCases(completeExamCases<CaseChoice>(data.cases??[],data.items??[]));setCaseReady(ready)}}).catch(()=>{if(active)setCaseError('Could not load the case library. Please try again.')}).finally(()=>{if(active)setCaseLoading(false)});return()=>{active=false};},[reload]);
  const [mode,setMode]=useState<'standard'|'custom'>('standard');
  const [examMode,setExamMode]=useState<'study'|'test'>(initialMode);
- const [topics,setTopics]=useState<Category[]>([...pillars]);
+ const [topics,setTopics]=useState<Category[]>([...subjects]);
  const [statuses,setStatuses]=useState<Status[]>(['unused','incorrect','omitted','correct']);
  const [count,setCount]=useState(20);
  const [questions,setQuestions]=useState<Question[]>([]);
@@ -38,7 +36,7 @@ export function QuestionBuilder({initialMode='study',pediatric=false}:{initialMo
  const [started,setStarted]=useState<{questionIds:string[];caseIds:string[]}|null>(null);
  useEffect(()=>{let ignore=false;setLoading(true);setError('');(async()=>{
    try{
-    const response=await fetch('/api/questions?formats=extended-v1&category='+ (pediatric?'Pediatrics':'All'),{cache:'no-store'});
+    const response=await fetch('/api/questions?formats=extended-v1&category=All',{cache:'no-store'});
     if(!response.ok)throw new Error('Could not load published questions');
     const body=await response.json() as {questions:Question[]};
     const db=createClient();
@@ -58,7 +56,7 @@ export function QuestionBuilder({initialMode='study',pediatric=false}:{initialMo
     if(!ignore){setQuestions(body.questions??[]);setLatest(lookup)}
    }catch(e){if(!ignore)setError(e instanceof Error?e.message:'Unable to load question bank')}
    finally{if(!ignore)setLoading(false)}
- })();return()=>{ignore=true}},[pediatric]);
+ })();return()=>{ignore=true}},[]);
  const matchesFormat=(q:Question)=>formats.includes(isNgnQuestion(q)?'ngn':'standard');
  const eligible=questions.filter(q=>topics.includes(q.category)&&matchesFormat(q)&&statuses.includes(latest[q.id]??'unused'));
  const availableCases=useMemo(()=>cases.filter(c=>topics.includes(c.topic as Category)),[cases,topics]);
@@ -89,19 +87,10 @@ export function QuestionBuilder({initialMode='study',pediatric=false}:{initialMo
         <span className="text-sm">{label}</span><span className="pill">{countByStatus(key)}</span>
       </label>)}
     </div>
-    <p className="mt-5 text-xs text-espresso/60">{pediatric?'Status filters apply to both standalone and NGN questions.':'Status filters apply to standalone questions. Complete case studies are selected by subject and kept together in their original six-question order.'}</p>
+    <p className="mt-5 text-xs text-espresso/60">Status filters apply to standalone questions, including standalone NGN questions. Complete case studies are selected by subject and kept together in their original six-question order.</p>
   </div>
-  {pediatric&&<div className={shell}>
-    <h2 className="text-2xl">Question format</h2>
-    <fieldset className="flex flex-wrap gap-4 mt-4">
-      <legend className="sr-only">Pediatrics question formats</legend>
-      {([['standard','Standalone questions'],['ngn','NGN questions']] as const).map(([value,label])=><label key={value} className="inline-flex items-center gap-2 text-sm">
-        <input type="checkbox" className="accent-mauve" checked={formats.includes(value)} onChange={()=>toggleFormat(value)}/>{label}
-      </label>)}
-    </fieldset>
-  </div>}
-  {!pediatric&&<div className={shell}>
-    <h2 className="text-2xl">Question Category <span className="text-rose text-sm" title="Select one or more maternity pillars">ⓘ</span></h2>
+  <div className={shell}>
+    <h2 className="text-2xl">Question Category <span className="text-rose text-sm" title="Select one or more subjects">ⓘ</span></h2>
     <div className="flex flex-wrap gap-2 mt-5" role="group" aria-label="Question category">
       <button type="button" className={pill(allQuestions)} aria-pressed={allQuestions} onClick={()=>{setAllQuestions(true);setFormats(['standard','ngn','cases'])}}>All Questions</button>
       {([['standard','Standalone Only'],['cases','NGN Case Studies Only'],['ngn','NGN Questions']] as const).map(([value,label])=><button type="button" key={value} className={pill(!allQuestions&&formats.length===1&&formats[0]===value)} aria-pressed={!allQuestions&&formats.length===1&&formats[0]===value} onClick={()=>{setAllQuestions(false);setFormats([value])}}>{label}</button>)}
@@ -110,17 +99,17 @@ export function QuestionBuilder({initialMode='study',pediatric=false}:{initialMo
     <fieldset className="flex flex-wrap gap-4 mt-4"><legend className="text-sm font-semibold mb-2">Combine question formats</legend>{([['standard','Standalone questions'],['ngn','Standalone NGN questions'],['cases','NGN case studies']] as const).map(([value,label])=><label key={value} className="inline-flex items-center gap-2 text-sm"><input type="checkbox" className="accent-mauve" checked={formats.includes(value)} onChange={()=>toggleFormat(value)}/>{label}</label>)}</fieldset>
     <div className="inline-flex bg-oatmeal rounded-full p-1 mt-5"><span className={pill(true)}>Subjects</span><span className="px-5 py-2 text-sm text-espresso/40">Client Needs · coming soon</span></div>
     <div className="mt-6"><label className="inline-flex items-center gap-2 font-semibold text-sm">
-      <input type="checkbox" className="accent-mauve h-4 w-4" checked={topics.length===pillars.length} onChange={()=>setTopics(topics.length===pillars.length?[]:[...pillars])}/> All maternity subjects
+      <input type="checkbox" className="accent-mauve h-4 w-4" checked={topics.length===subjects.length} onChange={()=>setTopics(topics.length===subjects.length?[]:[...subjects])}/> All subjects
     </label></div>
     <div className="grid sm:grid-cols-2 gap-x-10 gap-y-5 mt-6">
-      {pillars.map(topic=><label key={topic} className="flex items-center justify-between gap-3 cursor-pointer rounded-xl border border-rose/25 bg-cream/45 px-4 py-3">
+      {subjects.map(topic=><label key={topic} className="flex items-center justify-between gap-3 cursor-pointer rounded-xl border border-rose/25 bg-cream/45 px-4 py-3">
         <span className="flex gap-3 items-center"><input type="checkbox" className="accent-mauve h-4 w-4" checked={topics.includes(topic)} onChange={()=>toggleTopic(topic)}/><span className="text-sm font-medium">{topic}</span></span>
         <span className="pill">{questions.filter(q=>q.category===topic&&matchesFormat(q)).length+(includeCases?cases.filter(c=>c.topic===topic).length*CASE_ITEM_COUNT:0)}</span>
       </label>)}
     </div>
     <p className="mt-6 text-sm text-espresso/70">NGN Questions includes standalone bowties, highlighted findings, cloze, drag-and-drop, and matrix questions. NGN Case Studies adds complete six-question patient-chart cases automatically from your selected subjects.</p>
     <p className="mt-3 text-xs text-espresso/60">Only published questions appear. Counts reflect your Supabase content, not the example platform.</p>
-  </div>}
+  </div>
   <div className={shell}>
     <div className="flex flex-wrap items-center gap-5 justify-between">
       <div><h2 className="text-2xl">Number of Questions</h2><p className="mt-1 text-sm text-espresso/60">Up to {MAX_EXAM_ITEMS} questions per exam, including case-study questions.</p></div>
