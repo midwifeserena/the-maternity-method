@@ -14,7 +14,7 @@ export default function FetalTracingPage(){
   </header>
   <div className="surface border-rose p-5 sm:p-7">
    <h2 className="text-2xl">Play the NCC tracing game</h2>
-   <p className="mt-2">The game opens in a new tab so NCC can start your session and display the fetal strips.</p>
+   <p className="mt-2">If Start returns you to the profession screen, use the NCC link to play in a new tab.</p>
    <div className="mt-5 flex flex-wrap items-center gap-3">
     <a className="btn-primary inline-flex items-center gap-2" href={gameUrl} target="_blank" rel="noopener noreferrer">
      Open on NCC’s website <ExternalLink size={16} aria-hidden="true"/>
@@ -22,6 +22,15 @@ export default function FetalTracingPage(){
     </a>
     <Link className="btn-outline" href="/study-studio">All study tools</Link>
    </div>
+  </div>
+  <div className="surface overflow-hidden border-rose">
+   <iframe
+    className="block h-[max(42rem,75dvh)] w-full bg-white"
+    src={gameUrl}
+    title="NCC Electronic Fetal Monitoring game"
+    sandbox="allow-forms allow-scripts allow-same-origin"
+    referrerPolicy="no-referrer"
+   />
   </div>
  </section>;
 }
