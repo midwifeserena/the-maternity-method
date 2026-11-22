@@ -3,36 +3,33 @@ import {useState} from 'react';
 
 export function DraftBankImport(){
  const [file,setFile]=useState<File|null>(null);
- const [preview,setPreview]=useState(false);
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState('');
  const [error,setError]=useState(false);
 
- async function submit(checkOnly:boolean){
+ async function submit(){
   if(!file||busy)return;
   setBusy(true);setMessage('');setError(false);
   try{
-   const response=await fetch('/api/admin/questions/draft-import'+(checkOnly?'?preview=1':''),{
+   const response=await fetch('/api/admin/questions/draft-import',{
     method:'POST',headers:{'Content-Type':'text/plain'},body:file,
    });
    const result=await response.json();
    if(!response.ok)throw Error(result.error);
-   setPreview(checkOnly);
-   setMessage(checkOnly?'Validated 645 Pediatrics questions and 2 maternity questions.':'Drafts added: '+result.added+'. Existing records skipped: '+result.skipped+'. Refresh Question Studio to see the drafts.');
+   setMessage(result.published+' questions published. '+result.skipped+' existing records skipped.');
   }catch(e){setError(true);setMessage(e instanceof Error?e.message:'Could not import the draft file.');}
   finally{setBusy(false);}
  }
 
  return <details className="surface p-5 mb-6">
-  <summary className="cursor-pointer font-semibold text-mauve">Import Pediatrics and maternity drafts</summary>
+  <summary className="cursor-pointer font-semibold text-mauve">Import and publish Pediatrics and maternity questions</summary>
   <label className="mt-4 block text-sm">Original ALLv Markdown file
    <input type="file" accept=".md,text/markdown,text/plain" disabled={busy} className="mt-2 block w-full" onChange={e=>{
-    setFile(e.target.files?.[0]??null);setPreview(false);setMessage('');
+    setFile(e.target.files?.[0]??null);setMessage('');
    }}/>
   </label>
   <div className="mt-4 flex flex-wrap gap-2">
-   <button type="button" className="btn-outline" disabled={!file||busy} onClick={()=>void submit(true)}>Validate file</button>
-   <button type="button" className="btn-primary" disabled={!preview||busy} onClick={()=>void submit(false)}>Import as drafts</button>
+   <button type="button" className="btn-primary" disabled={!file||busy} onClick={()=>void submit()}>Upload and publish</button>
   </div>
   {busy&&<p className="mt-3 text-sm" role="status">Working…</p>}
   {message&&<p className="mt-3 text-sm" role={error?'alert':'status'}>{message}</p>}
