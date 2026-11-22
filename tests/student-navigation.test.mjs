@@ -12,7 +12,7 @@ function sidebarMarkup(pathname,isAdmin){
   if(name==='react'||name==='react/jsx-runtime'||name==='lucide-react')return localRequire(name);
   if(name==='next/navigation')return{usePathname:()=>pathname};
   if(name==='next/link')return function Link({children,...props}){return React.createElement('a',props,children)};
-  if(name==='@/components/stork-logo')return{StorkLogo:()=>React.createElement('img',{alt:'The Maternity Method logo'})};
+  if(name==='next/image')return function Image(props){return React.createElement('img',{src:props.src,alt:props.alt})};
   throw Error('Unexpected dependency '+name);
  }});
  return renderToStaticMarkup(React.createElement(exports.Sidebar,{isAdmin}));
@@ -30,4 +30,9 @@ test('deep-linked exam reviews expand Question Bank and mark Previous Exams curr
 });
 test('Study Studio groups personal tools and keeps course resource deep links current',()=>{
  for(const path of ['/study-studio/notebook','/flashcards','/study-guides','/video-lessons']){const markup=sidebarMarkup(path,false);assert(markup.includes('Study Studio'));assert(!markup.includes('id="study-studio-submenu" hidden'));for(const label of ['Notebook','Flashcards','Video Lessons','Podcast','Study Sheets'])assert(markup.includes(label));assert(!markup.includes('Admin Questions'));}
+});
+test('Pediatrics has a separate entry in the Question Bank menu',()=>{
+ const markup=sidebarMarkup('/pediatrics',false);
+ assert.match(markup,/href="\/pediatrics"[^>]*aria-current="page"/);
+ assert.match(markup,/Pediatrics Question Bank/);
 });

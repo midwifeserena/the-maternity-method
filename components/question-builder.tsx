@@ -8,23 +8,24 @@ import {Exam} from '@/components/exam';
 import type {Question,Category} from '@/lib/questions';
 
 type Status='unused'|'incorrect'|'correct'|'omitted';
-const pillars:Category[]=['Antepartum','Intrapartum','Postpartum','Newborn'];
+const maternitySubjects:Category[]=['Antepartum','Intrapartum','Postpartum','Newborn'];
 const statusLabels:{key:Status;label:string}[]=[
   {key:'unused',label:'Unused'},{key:'incorrect',label:'Incorrect'},
   {key:'omitted',label:'Omitted'},{key:'correct',label:'Correct'}
 ];
 type Format='standard'|'ngn'|'cases';
 type CaseChoice={id:string;case_number:number;topic:string;intro:string};
-export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'test'}){
+export function QuestionBuilder({initialMode='study',pediatric=false}:{initialMode?:'study'|'test';pediatric?:boolean}){
+ const pillars:Category[]=pediatric?['Pediatrics']:maternitySubjects;
  const [formats,setFormats]=useState<Format[]>(['standard']);
  const [allQuestions,setAllQuestions]=useState(false);
  const includeCases=formats.includes('cases'),includeStandalone=formats.some(format=>format!=='cases');
  const [cases,setCases]=useState<CaseChoice[]>([]);
  const [caseReady,setCaseReady]=useState(false),[caseLoading,setCaseLoading]=useState(true),[caseError,setCaseError]=useState(''),[reload,setReload]=useState(0);
- useEffect(()=>{let active=true;setCaseLoading(true);setCaseError('');Promise.all([
+ useEffect(()=>{if(pediatric)return;let active=true;setCaseLoading(true);setCaseError('');Promise.all([
   fetch('/api/ngn?formats=extended-v1',{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error();return r.json()}),
   fetch('/api/exams/capabilities',{cache:'no-store'}).then(async r=>r.ok?(await r.json()).caseExams===true:false).catch(()=>false)
- ]).then(([data,ready])=>{if(active){setCases(completeExamCases<CaseChoice>(data.cases??[],data.items??[]));setCaseReady(ready)}}).catch(()=>{if(active)setCaseError('Could not load the case library. Please try again.')}).finally(()=>{if(active)setCaseLoading(false)});return()=>{active=false};},[reload]);
+ ]).then(([data,ready])=>{if(active){setCases(completeExamCases<CaseChoice>(data.cases??[],data.items??[]));setCaseReady(ready)}}).catch(()=>{if(active)setCaseError('Could not load the case library. Please try again.')}).finally(()=>{if(active)setCaseLoading(false)});return()=>{active=false};},[reload,pediatric]);
  const [mode,setMode]=useState<'standard'|'custom'>('standard');
  const [examMode,setExamMode]=useState<'study'|'test'>(initialMode);
  const [topics,setTopics]=useState<Category[]>([...pillars]);
@@ -37,7 +38,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
  const [started,setStarted]=useState<{questionIds:string[];caseIds:string[]}|null>(null);
  useEffect(()=>{let ignore=false;setLoading(true);setError('');(async()=>{
    try{
-    const response=await fetch('/api/questions?formats=extended-v1&category=All',{cache:'no-store'});
+    const response=await fetch('/api/questions?formats=extended-v1&category='+ (pediatric?'Pediatrics':'All'),{cache:'no-store'});
     if(!response.ok)throw new Error('Could not load published questions');
     const body=await response.json() as {questions:Question[]};
     const db=createClient();
@@ -57,7 +58,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
     if(!ignore){setQuestions(body.questions??[]);setLatest(lookup)}
    }catch(e){if(!ignore)setError(e instanceof Error?e.message:'Unable to load question bank')}
    finally{if(!ignore)setLoading(false)}
- })();return()=>{ignore=true}},[]);
+ })();return()=>{ignore=true}},[pediatric]);
  const matchesFormat=(q:Question)=>formats.includes(isNgnQuestion(q)?'ngn':'standard');
  const eligible=questions.filter(q=>topics.includes(q.category)&&matchesFormat(q)&&statuses.includes(latest[q.id]??'unused'));
  const availableCases=useMemo(()=>cases.filter(c=>topics.includes(c.topic as Category)),[cases,topics]);
@@ -90,7 +91,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
     </div>
     <p className="mt-5 text-xs text-espresso/60">Status filters apply to standalone questions. Complete case studies are selected by subject and kept together in their original six-question order.</p>
   </div>
-  <div className={shell}>
+  {!pediatric&&<div className={shell}>
     <h2 className="text-2xl">Question Category <span className="text-rose text-sm" title="Select one or more maternity pillars">ⓘ</span></h2>
     <div className="flex flex-wrap gap-2 mt-5" role="group" aria-label="Question category">
       <button type="button" className={pill(allQuestions)} aria-pressed={allQuestions} onClick={()=>{setAllQuestions(true);setFormats(['standard','ngn','cases'])}}>All Questions</button>
@@ -110,7 +111,7 @@ export function QuestionBuilder({initialMode='study'}:{initialMode?:'study'|'tes
     </div>
     <p className="mt-6 text-sm text-espresso/70">NGN Questions includes standalone bowties, highlighted findings, cloze, drag-and-drop, and matrix questions. NGN Case Studies adds complete six-question patient-chart cases automatically from your selected subjects.</p>
     <p className="mt-3 text-xs text-espresso/60">Only published questions appear. Counts reflect your Supabase content, not the example platform.</p>
-  </div>
+  </div>}
   <div className={shell}>
     <div className="flex flex-wrap items-center gap-5 justify-between">
       <div><h2 className="text-2xl">Number of Questions</h2><p className="mt-1 text-sm text-espresso/60">Up to {MAX_EXAM_ITEMS} questions per exam, including case-study questions.</p></div>

@@ -4,7 +4,7 @@ import {NextResponse, type NextRequest} from 'next/server';
 const publicPages=new Set(['','/launch','/login','/reset-password','/enrollment-closed','/auth/callback']);
 const protectedSections=new Set([
  'dashboard','question-bank','create-exam','previous-tests','ngn-case-studies',
- 'video-lessons','study-guides','flashcards','performance','account','study-studio','admin',
+ 'pediatrics','video-lessons','study-guides','flashcards','performance','account','study-studio','admin',
 ]);
 
 export async function proxy(request:NextRequest){
