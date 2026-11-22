@@ -89,8 +89,17 @@ export function QuestionBuilder({initialMode='study',pediatric=false}:{initialMo
         <span className="text-sm">{label}</span><span className="pill">{countByStatus(key)}</span>
       </label>)}
     </div>
-    <p className="mt-5 text-xs text-espresso/60">Status filters apply to standalone questions. Complete case studies are selected by subject and kept together in their original six-question order.</p>
+    <p className="mt-5 text-xs text-espresso/60">{pediatric?'Status filters apply to both standalone and NGN questions.':'Status filters apply to standalone questions. Complete case studies are selected by subject and kept together in their original six-question order.'}</p>
   </div>
+  {pediatric&&<div className={shell}>
+    <h2 className="text-2xl">Question format</h2>
+    <fieldset className="flex flex-wrap gap-4 mt-4">
+      <legend className="sr-only">Pediatrics question formats</legend>
+      {([['standard','Standalone questions'],['ngn','NGN questions']] as const).map(([value,label])=><label key={value} className="inline-flex items-center gap-2 text-sm">
+        <input type="checkbox" className="accent-mauve" checked={formats.includes(value)} onChange={()=>toggleFormat(value)}/>{label}
+      </label>)}
+    </fieldset>
+  </div>}
   {!pediatric&&<div className={shell}>
     <h2 className="text-2xl">Question Category <span className="text-rose text-sm" title="Select one or more maternity pillars">ⓘ</span></h2>
     <div className="flex flex-wrap gap-2 mt-5" role="group" aria-label="Question category">

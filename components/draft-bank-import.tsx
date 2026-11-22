@@ -23,7 +23,7 @@ export function DraftBankImport({csv=false}:{csv?:boolean}){
 
  return <details className="surface p-5 mb-6">
   <summary className="cursor-pointer rounded-md px-2 py-1 font-semibold text-mauve hover:bg-blush focus-visible:bg-blush">{csv?'Import question CSV':'Import and publish Pediatrics and maternity questions'}</summary>
-  <label className="mt-4 block text-sm">{csv?'Question bank CSV file':'Original ALLv Markdown file'}
+  <label className="mt-4 block text-sm">{csv?'Question bank CSV file (MCQ, SATA, or bow-tie)':'Original ALLv Markdown file'}
    <input type="file" accept={csv?".csv,text/csv":".md,text/markdown,text/plain"} disabled={busy} className="question-import-file mt-2 block w-full rounded-md" onChange={e=>{
     setFile(e.target.files?.[0]??null);setMessage('');
    }}/>
