@@ -22,9 +22,9 @@ export function DraftBankImport(){
  }
 
  return <details className="surface p-5 mb-6">
-  <summary className="cursor-pointer font-semibold text-mauve">Import and publish Pediatrics and maternity questions</summary>
+  <summary className="cursor-pointer rounded-md px-2 py-1 font-semibold text-mauve hover:bg-blush focus-visible:bg-blush">Import and publish Pediatrics and maternity questions</summary>
   <label className="mt-4 block text-sm">Original ALLv Markdown file
-   <input type="file" accept=".md,text/markdown,text/plain" disabled={busy} className="mt-2 block w-full" onChange={e=>{
+   <input type="file" accept=".md,text/markdown,text/plain" disabled={busy} className="question-import-file mt-2 block w-full rounded-md" onChange={e=>{
     setFile(e.target.files?.[0]??null);setMessage('');
    }}/>
   </label>

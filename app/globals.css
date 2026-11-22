@@ -27,7 +27,7 @@ button:disabled {cursor:not-allowed;opacity:.55}
 }
 .surface.exam-history-card, .surface.sign-in-card { border: 2px solid var(--color-rose); }
 .btn-primary {background:#8E4A55;color:#fff7ef;border-radius:999px;padding:11px 20px;font-weight:650}
-.btn-primary:hover {background:#773946}
+.btn-primary:not(:disabled):is(:hover, :focus-visible) {background:#773946}
 .btn-outline {border:1px solid #B38585;border-radius:999px;padding:10px 18px;color:#8E4A55;font-weight:600}
 .btn-outline:hover {background:#E6D4CA}
 .pill {background:#E6D4CA;color:#8E4A55;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700}
@@ -36,3 +36,19 @@ button:disabled {cursor:not-allowed;opacity:.55}
 .protected-course-content { -webkit-user-select: none; user-select: none; }
 .protected-course-content input, .protected-course-content textarea, .protected-course-content select, .protected-course-content [contenteditable="true"], .protected-course-content [role="textbox"] { -webkit-user-select: text; user-select: text; }
 @media print { .protected-course-content { visibility: hidden !important; } }
+
+.question-import-file::file-selector-button {
+  margin-inline-end: 0.75rem;
+  border: 1px solid var(--color-rose);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  color: var(--color-mauve);
+  font-weight: 650;
+  background: #fff9f2;
+}
+.question-import-file:not(:disabled)::file-selector-button { cursor: pointer; }
+.question-import-file:not(:disabled):is(:hover, :focus-visible)::file-selector-button {
+  background: var(--color-mauve);
+  border-color: var(--color-mauve);
+  color: #fff9f2;
+}
