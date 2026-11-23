@@ -35,24 +35,24 @@
 }
 
 .primary {
-  background: linear-gradient(#fff9f2, #e6bdb9);
+  background: radial-gradient(circle at 34% 22%, #fff9f2, #f3d5cd 53%, #cc979a 100%);
   color: #572d3a;
 }
 
 .primary:hover {
-  background: linear-gradient(#fff9f2, #f1d3cc);
+  background: radial-gradient(circle at 34% 22%, #fff9f2, #f7ded4 55%, #dfaeb0 100%);
 }
 
 .secondary {
   background: linear-gradient(#8e5865, #74424e);
 }
 
-.secondary:hover {
+.secondary:enabled:hover {
   background: linear-gradient(#a26874, #87505d);
 }
 
 .primary:active,
-.secondary:active {
+.secondary:enabled:active {
   transform: translateY(1px);
   box-shadow: inset 0 1px 3px #45232e66;
 }

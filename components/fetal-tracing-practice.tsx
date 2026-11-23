@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect,useId,useMemo,useRef,useState} from 'react';
-import {Activity,ArrowRight,Check,Pause,Play,RotateCcw} from 'lucide-react';
+import {Activity,ArrowRight,Check,ChevronLeft,ChevronRight,Pause,Play,RotateCcw} from 'lucide-react';
 import {practiceCases,tracingAnswers,tracingFields,tracingSamples,type TracingField} from '@/lib/fetal-tracing';
 
 import styles from './fetal-tracing-console.module.css';
@@ -9,8 +9,8 @@ import styles from './fetal-tracing-console.module.css';
 const heartTicks=[60,90,120,150,180,210];
 const activityTicks=[0,25,50,75,100];
 const duration=600;
-const defaultPlaybackSeconds=20;
-const defaultSpeed=duration/defaultPlaybackSeconds;
+const playbackSeconds=20;
+const speed=duration/playbackSeconds;
 const windowSeconds=180;
 const left=65;
 const width=810;
@@ -19,12 +19,10 @@ const heartY=(rate:number)=>224-(rate-60)*1.2;
 const activityY=(activity:number)=>348-activity*.9;
 const displayTime=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds)%60).padStart(2,'0')}`;
 
-function TracingChart({item,index}:{item:typeof practiceCases[number];index:number}){
+function TracingChart({item,index,onMove}:{item:typeof practiceCases[number];index:number;onMove:(index:number)=>void}){
  const id=useId();
  const [position,setPosition]=useState(0);
  const [playing,setPlaying]=useState(false);
- const [speed,setSpeed]=useState(defaultSpeed);
- const [overview,setOverview]=useState(false);
  const cursor=useRef(0);
  const chartWindow=useRef<HTMLDivElement>(null);
  const paths=useMemo(()=>{
@@ -47,37 +45,24 @@ function TracingChart({item,index}:{item:typeof practiceCases[number];index:numb
   }
   frame=requestAnimationFrame(advance);
   return ()=>cancelAnimationFrame(frame);
- },[playing,speed]);
+ },[playing]);
 
- function seek(seconds:number){
-  cursor.current=seconds;
-  setPosition(seconds);
- }
  function togglePlayback(){
   if(playing){setPlaying(false);return;}
-  if(cursor.current>=duration)seek(0);
-  setOverview(false);
+  if(cursor.current>=duration){
+   cursor.current=0;
+   setPosition(0);
+  }
   if(chartWindow.current)chartWindow.current.scrollLeft=chartWindow.current.scrollWidth;
   setPlaying(true);
- }
- function replay(){
-  seek(0);
-  setOverview(false);
-  if(chartWindow.current)chartWindow.current.scrollLeft=chartWindow.current.scrollWidth;
-  setPlaying(true);
- }
- function toggleOverview(){
-  setPlaying(false);
-  setOverview(value=>!value);
  }
 
- const scale=width/(overview?duration:windowSeconds);
- const origin=overview?0:position-windowSeconds;
+ const scale=width/windowSeconds;
+ const origin=position-windowSeconds;
  const x=(seconds:number)=>left+(seconds-origin)*scale;
- const tickSeconds=overview?60:30;
- const ticks=Array.from({length:duration/tickSeconds+1},(_,i)=>i*tickSeconds)
-  .filter(seconds=>seconds>=Math.max(0,origin)&&seconds<=(overview?duration:position));
- const visibleWidth=overview?width:Math.min(width,position*scale);
+ const ticks=Array.from({length:duration/30+1},(_,i)=>i*30)
+  .filter(seconds=>seconds>=Math.max(0,origin)&&seconds<=position);
+ const visibleWidth=Math.min(width,position*scale);
  const traceLeft=right-visibleWidth;
 
  return <div className={styles.console}>
@@ -90,8 +75,8 @@ function TracingChart({item,index}:{item:typeof practiceCases[number];index:numb
     <svg viewBox="0 0 900 388" className="block w-full min-w-[580px]" role="img"
      aria-label="Fetal heart rate on top and uterine activity below, aligned on the same time axis.">
      <defs>
-      <pattern id={id+'-grid'} x={x(0) % (scale*(overview?10:5))} width={scale*(overview?10:5)} height="12" patternUnits="userSpaceOnUse">
-       <path d={`M ${scale*(overview?10:5)} 0 H 0 V 12`} fill="none" stroke="#ead0cb" strokeWidth="1"/>
+      <pattern id={id+'-grid'} x={x(0) % (scale*5)} width={scale*5} height="12" patternUnits="userSpaceOnUse">
+       <path d={`M ${scale*5} 0 H 0 V 12`} fill="none" stroke="#ead0cb" strokeWidth="1"/>
       </pattern>
       <clipPath id={id+'-trace'}><rect x={traceLeft} y="44" width={visibleWidth} height="304"/></clipPath>
      </defs>
@@ -121,31 +106,26 @@ function TracingChart({item,index}:{item:typeof practiceCases[number];index:numb
      </g>
     </svg>
    </div>
-   <div className={`${styles.controls} flex flex-wrap items-center gap-2 text-sm lg:flex-col lg:items-stretch lg:justify-center`}>
-    <button type="button" className={`${styles.primary} inline-flex min-h-10 items-center gap-2 rounded-lg px-3 font-semibold`}
+   <div className={`${styles.controls} flex flex-wrap items-center justify-center gap-3 text-sm lg:flex-col`}>
+    <button type="button" className={`${styles.primary} inline-flex size-[4.5rem] shrink-0 flex-col items-center justify-center gap-1 rounded-full text-xs font-bold`}
      onClick={togglePlayback}>
-     {playing?<Pause size={16} aria-hidden="true"/>:<Play size={16} aria-hidden="true"/>}
-     {playing?'Pause':position>0&&position<duration?'Resume':'Start'}
+     {playing?<Pause size={19} aria-hidden="true"/>:<Play size={19} aria-hidden="true"/>}
+     {playing?'Pause':'Start'}
     </button>
-    <button type="button" className={`${styles.secondary} inline-flex min-h-10 items-center gap-2 rounded-lg px-3`} onClick={replay}>
-     <RotateCcw size={16} aria-hidden="true"/> Replay
-    </button>
-    <label className="inline-flex min-h-10 items-center gap-2 px-1">
-     Speed
-     <select className="rounded-md bg-[#fff9f2] px-2 py-1 text-espresso" value={speed} onChange={event=>setSpeed(Number(event.target.value))}>
-      {[1,5,10,20,defaultSpeed].map(value=><option key={value} value={value}>{value===defaultSpeed?`${defaultPlaybackSeconds}s run`:`${value}×`}</option>)}
-     </select>
-    </label>
-    <button type="button" onClick={toggleOverview} className={`${styles.secondary} min-h-10 rounded-lg px-3 text-left`}>
-     {overview?'Scrolling view':'Full strip'}
-    </button>
+    <div role="group" aria-label="Browse strips" className="flex gap-1">
+     <button type="button" aria-label="Previous strip" title="Previous strip" disabled={index===0}
+      className={`${styles.secondary} grid size-11 place-items-center rounded-l-xl rounded-r-sm`}
+      onClick={()=>onMove(index-1)}>
+      <ChevronLeft size={23} aria-hidden="true"/>
+     </button>
+     <button type="button" aria-label="Skip to next strip" title="Next strip" disabled={index===practiceCases.length-1}
+      className={`${styles.secondary} grid size-11 place-items-center rounded-l-sm rounded-r-xl`}
+      onClick={()=>onMove(index+1)}>
+      <ChevronRight size={23} aria-hidden="true"/>
+     </button>
+    </div>
+    <p className="whitespace-nowrap text-xs tabular-nums">{displayTime(position)} / {displayTime(duration)}</p>
    </div>
-   <label className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-sm text-white lg:col-span-2">
-    <span>Strip time</span>
-    <input type="range" min={0} max={duration} step={1} value={Math.floor(position)} className="min-w-24 flex-1 accent-[#f1ccc5]"
-     aria-valuetext={displayTime(position)} onChange={event=>{setPlaying(false);setOverview(false);seek(Number(event.target.value));}}/>
-    <span className="tabular-nums">{displayTime(position)} / 10:00</span>
-   </label>
   </div>
  </div>;
 }
@@ -173,12 +153,12 @@ export function FetalTracingPractice(){
    {finished?'Practice complete':'Interpret the strip'}
   </h2>
   {finished?<div className="surface p-6">
-   <p>You’ve reviewed all {practiceCases.length} practice strips.</p>
+   <p>You’ve reached the end of this practice set.</p>
    <button type="button" className="btn-primary mt-4 inline-flex items-center gap-2" onClick={()=>move(0)}>
     <RotateCcw size={17} aria-hidden="true"/> Practice again
    </button>
   </div>:<>
-   <TracingChart key={index} item={item} index={index}/>
+   <TracingChart key={index} item={item} index={index} onMove={move}/>
    {item.context&&<p className="surface p-4">{item.context}</p>}
    <form className="space-y-5" onSubmit={event=>{
     event.preventDefault();
