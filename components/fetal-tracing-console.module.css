@@ -1,0 +1,62 @@
+.console {
+  border: 1px solid #623844;
+  border-radius: clamp(20px, 4vw, 38px);
+  background: linear-gradient(155deg, #bb838c 0%, #985b69 21%, #78444f 63%, #633843 100%);
+  box-shadow:
+    inset 0 2px 2px #f4c7c966,
+    inset 0 -7px 9px #3d202a70,
+    0 6px 0 #4c2933,
+    0 13px 22px #4e36294a;
+  color: #fff9f2;
+}
+
+.screen {
+  border: 3px solid #482631;
+  background: #fff9f2;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2px #d7a9a4,
+    0 0 0 4px #764650,
+    inset 0 2px 6px #4a253344;
+}
+
+.controls {
+  border: 1px solid #efccca3d;
+  border-radius: 15px;
+  padding: 8px;
+  background: linear-gradient(160deg, #5c313b, #70424c);
+  box-shadow: inset 0 2px 5px #34182166, 0 1px 0 #e4aaa155;
+}
+
+.primary,
+.secondary {
+  border: 1px solid #421f2c;
+  box-shadow: inset 0 1px 0 #fff9f280, 0 2px 0 #341921;
+}
+
+.primary {
+  background: linear-gradient(#fff9f2, #e6bdb9);
+  color: #572d3a;
+}
+
+.primary:hover {
+  background: linear-gradient(#fff9f2, #f1d3cc);
+}
+
+.secondary {
+  background: linear-gradient(#8e5865, #74424e);
+}
+
+.secondary:hover {
+  background: linear-gradient(#a26874, #87505d);
+}
+
+.primary:active,
+.secondary:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px #45232e66;
+}
+
+.console :is(button, select, input, [tabindex]):focus-visible {
+  outline-color: #fff9f2;
+}

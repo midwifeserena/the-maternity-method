@@ -4,9 +4,13 @@ import {useEffect,useId,useMemo,useRef,useState} from 'react';
 import {Activity,ArrowRight,Check,Pause,Play,RotateCcw} from 'lucide-react';
 import {practiceCases,tracingAnswers,tracingFields,tracingSamples,type TracingField} from '@/lib/fetal-tracing';
 
+import styles from './fetal-tracing-console.module.css';
+
 const heartTicks=[60,90,120,150,180,210];
 const activityTicks=[0,25,50,75,100];
 const duration=600;
+const defaultPlaybackSeconds=20;
+const defaultSpeed=duration/defaultPlaybackSeconds;
 const windowSeconds=180;
 const left=65;
 const width=810;
@@ -19,7 +23,7 @@ function TracingChart({item,index}:{item:typeof practiceCases[number];index:numb
  const id=useId();
  const [position,setPosition]=useState(0);
  const [playing,setPlaying]=useState(false);
- const [speed,setSpeed]=useState(10);
+ const [speed,setSpeed]=useState(defaultSpeed);
  const [overview,setOverview]=useState(false);
  const cursor=useRef(0);
  const chartWindow=useRef<HTMLDivElement>(null);
@@ -76,13 +80,13 @@ function TracingChart({item,index}:{item:typeof practiceCases[number];index:numb
  const visibleWidth=overview?width:Math.min(width,position*scale);
  const traceLeft=right-visibleWidth;
 
- return <div className="overflow-hidden rounded-2xl border-2 border-[#5b303b] bg-[#683b45] shadow-lg">
-  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-white/20 px-4 py-3 text-sm font-semibold text-white sm:px-5">
+ return <div className={styles.console}>
+  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pt-4 pb-2 text-sm font-semibold text-white sm:px-7">
    <span className="inline-flex items-center gap-2"><Activity size={18} aria-hidden="true"/> Fetal monitor</span>
    <span>Strip {index+1} of {practiceCases.length} · {item.weeks} weeks</span>
   </div>
-  <div className="grid gap-3 p-3 lg:grid-cols-[minmax(0,1fr)_8.5rem] lg:p-4">
-   <div ref={chartWindow} className="min-w-0 overflow-x-auto rounded-lg border-2 border-[#3e2329] bg-[#fff9f2]" tabIndex={0} role="region" aria-label="Fetal tracing chart. Scroll horizontally on narrow screens.">
+  <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_9.5rem] lg:p-6 lg:pt-3">
+   <div ref={chartWindow} className={`${styles.screen} min-w-0 overflow-x-auto`} tabIndex={0} role="region" aria-label="Fetal tracing chart. Scroll horizontally on narrow screens.">
     <svg viewBox="0 0 900 388" className="block w-full min-w-[580px]" role="img"
      aria-label="Fetal heart rate on top and uterine activity below, aligned on the same time axis.">
      <defs>
@@ -117,22 +121,22 @@ function TracingChart({item,index}:{item:typeof practiceCases[number];index:numb
      </g>
     </svg>
    </div>
-   <div className="flex flex-wrap items-center gap-2 text-sm text-white lg:flex-col lg:items-stretch lg:justify-center">
-    <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#fff9f2] px-3 font-semibold text-[#683b45] hover:bg-blush"
+   <div className={`${styles.controls} flex flex-wrap items-center gap-2 text-sm lg:flex-col lg:items-stretch lg:justify-center`}>
+    <button type="button" className={`${styles.primary} inline-flex min-h-10 items-center gap-2 rounded-lg px-3 font-semibold`}
      onClick={togglePlayback}>
      {playing?<Pause size={16} aria-hidden="true"/>:<Play size={16} aria-hidden="true"/>}
-     {playing?'Pause':position>0&&position<duration?'Resume':'Play'}
+     {playing?'Pause':position>0&&position<duration?'Resume':'Start'}
     </button>
-    <button type="button" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/45 px-3 hover:bg-white/15" onClick={replay}>
+    <button type="button" className={`${styles.secondary} inline-flex min-h-10 items-center gap-2 rounded-lg px-3`} onClick={replay}>
      <RotateCcw size={16} aria-hidden="true"/> Replay
     </button>
     <label className="inline-flex min-h-10 items-center gap-2 px-1">
      Speed
      <select className="rounded-md bg-[#fff9f2] px-2 py-1 text-espresso" value={speed} onChange={event=>setSpeed(Number(event.target.value))}>
-      {[1,5,10,20].map(value=><option key={value} value={value}>{value}×</option>)}
+      {[1,5,10,20,defaultSpeed].map(value=><option key={value} value={value}>{value===defaultSpeed?`${defaultPlaybackSeconds}s run`:`${value}×`}</option>)}
      </select>
     </label>
-    <button type="button" onClick={toggleOverview} className="min-h-10 rounded-lg border border-white/45 px-3 text-left hover:bg-white/15">
+    <button type="button" onClick={toggleOverview} className={`${styles.secondary} min-h-10 rounded-lg px-3 text-left`}>
      {overview?'Scrolling view':'Full strip'}
     </button>
    </div>

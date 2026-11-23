@@ -9,7 +9,7 @@ export default function FetalTracingPage(){
   <header className="mauve-page-header">
    <p className="text-xs font-bold uppercase tracking-[0.18em]">Study Studio</p>
    <h1 className="mt-3 text-4xl sm:text-5xl">Fetal Tracing</h1>
-   <p className="mt-3">Play, pause, and interpret simulated fetal monitor strips. Answers and scores aren’t saved.</p>
+   <p className="mt-3">Start the monitor and practice interpreting simulated fetal strips. Answers and scores aren’t saved.</p>
   </header>
   <FetalTracingPractice/>
   <nav aria-label="Fetal tracing resources" className="flex flex-wrap items-center gap-3">
