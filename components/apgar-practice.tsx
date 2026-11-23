@@ -2,7 +2,7 @@
 
 import {ApgarWarmer} from './apgar-warmer';
 import {useRef,useState} from 'react';
-import {ArrowRight,RotateCcw} from 'lucide-react';
+import {ArrowRight,ChevronLeft,ChevronRight,RotateCcw} from 'lucide-react';
 import {apgarCases,apgarComponents,apgarPoints} from '@/lib/apgar-practice';
 
 const minutes=[1,5] as const;
@@ -30,7 +30,7 @@ export function ApgarPractice(){
 
  if(!item||!expected)return <section className="surface space-y-4 p-6">
   <h2 ref={heading} tabIndex={-1} className="text-2xl">Practice complete</h2>
-  <p>You’ve worked through all {apgarCases.length} newborn cases.</p>
+  <p>You’ve reached the end of this practice set.</p>
   <button type="button" className="btn-primary inline-flex items-center gap-2" onClick={()=>move(0,0)}>
    <RotateCcw size={17} aria-hidden="true"/> Practice again
   </button>
@@ -44,11 +44,25 @@ export function ApgarPractice(){
     <ApgarWarmer key={`${index}-${assessment}`} labored={labored} findings={expected} heartRate={item.heartRates[assessment]} stimulus={stimulus}
      onStimulate={()=>setStimulus(current=>current+1)}/>
     <div className="space-y-3 p-5 sm:p-7">
-     <p className="text-xs font-bold uppercase tracking-widest text-mauve">Case {index+1} of {apgarCases.length}</p>
+     <div className="flex flex-wrap items-center justify-between gap-2">
+      <p className="text-xs font-bold uppercase tracking-widest text-mauve">Case {index+1} of {apgarCases.length}</p>
+      <div role="group" aria-label="Browse newborn cases" className="flex gap-2">
+       <button type="button" aria-label="Previous case" title="Previous case" disabled={index===0}
+        className="grid size-11 place-items-center rounded-full border border-rose text-mauve enabled:hover:bg-blush"
+        onClick={()=>move(index-1,0)}>
+        <ChevronLeft size={23} aria-hidden="true"/>
+       </button>
+       <button type="button" aria-label="Skip to next case" title="Next case" disabled={index===apgarCases.length-1}
+        className="grid size-11 place-items-center rounded-full border border-rose text-mauve enabled:hover:bg-blush"
+        onClick={()=>move(index+1,0)}>
+        <ChevronRight size={23} aria-hidden="true"/>
+       </button>
+      </div>
+     </div>
      <h2 id="apgar-case-title" ref={heading} tabIndex={-1} className="text-2xl">{item.title}</h2>
      <p>{item.description}</p>
      <p className="pill inline-block">{time}-minute assessment</p>
-     <p className="text-sm">Observe the newborn and check the response to stimulation. Then select 0, 1, or 2 points for each finding.</p>
+     <p className="text-sm">Select 0, 1, or 2 points for each finding. Use the stimulation button to observe the newborn’s reflex response.</p>
     </div>
    </div>
   </div>
@@ -61,7 +75,7 @@ export function ApgarPractice(){
    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
     {apgarComponents.map(({label,criteria},component)=><fieldset key={label} className="surface min-w-0 px-4 pb-4 pt-2" disabled={checked}>
      <legend className="px-2 font-bold text-mauve">{label}</legend>
-     <p className="mb-3 min-h-10 text-sm" aria-live={label==='Grimace'?'polite':undefined}>{label==='Grimace'&&!stimulus?'Check the response in the warmer':label==='Pulse'?`Heart rate: ${item.heartRates[assessment]} bpm`:criteria[expected[component]]}.{label==='Respiration'&&labored&&' The newborn has grunting on exhalation and inward pulling beneath the ribs with breaths.'}</p>
+     <p className="mb-3 min-h-10 text-sm" aria-live={label==='Grimace'?'polite':undefined}>{label==='Grimace'&&!stimulus&&!checked?'Check the response in the warmer':label==='Pulse'?`Heart rate: ${item.heartRates[assessment]} bpm`:criteria[expected[component]]}.{label==='Respiration'&&labored&&' The newborn has grunting on exhalation and inward pulling beneath the ribs with breaths.'}</p>
      <div className="flex flex-wrap gap-2">
       {apgarPoints.map(points=><label key={points} className="relative">
        <input className="peer sr-only" type="radio" name={label} value={points} required checked={choices[component]===points}
@@ -79,7 +93,7 @@ export function ApgarPractice(){
      onClick={()=>assessment===0?move(index,1):move(index+1,0)}>
      {assessment===0?'Go to 5-minute assessment':index===apgarCases.length-1?'Finish practice':'Next newborn'} <ArrowRight size={17} aria-hidden="true"/>
     </button>
-   </div>:<button className="btn-primary" type="submit" disabled={!stimulus||Object.keys(choices).length<apgarComponents.length}>Check Apgar score</button>}
+   </div>:<button className="btn-primary" type="submit" disabled={Object.keys(choices).length<apgarComponents.length}>Check Apgar score</button>}
   </form>
  </section>;
 }
