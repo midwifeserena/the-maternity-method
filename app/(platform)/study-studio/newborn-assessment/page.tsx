@@ -8,7 +8,7 @@ export default function NewbornAssessmentPage(){
   <header className="mauve-page-header">
    <p className="text-xs font-bold uppercase tracking-[0.18em]">Study Studio</p>
    <h1 className="mt-3 text-4xl sm:text-5xl">Newborn Assessment</h1>
-   <p className="mt-3">Select an exam area, inspect the simulated finding up close, and practice documenting what you see.</p>
+   <p className="mt-3">Examine the baby in the warmer, then document what you see at each exam area.</p>
   </header>
   <NewbornAssessmentPractice/>
   <Link className="btn-outline inline-flex" href="/study-studio">All study tools</Link>
