@@ -3,9 +3,22 @@
 import {useState} from 'react';
 import {ChevronDown,Download,ExternalLink,FileText,Search} from 'lucide-react';
 import {filterStudyGuides,studyGuideVolumes,type StudyGuide} from '@/lib/study-guide-catalog.mjs';
+import {StudyGuideWorkspace} from './study-guide-workspace';
 import './study-guide-library.css';
 
 export function StudyGuideLibrary({guides}:{guides:StudyGuide[]}){
+ const [view,setView]=useState<'workspace'|'list'>('workspace');
+ return <div className="space-y-4">
+  <div className="flex flex-wrap gap-2" role="group" aria-label="Study sheets layout">
+   <button type="button" aria-pressed={view==='workspace'} className={view==='workspace'?'btn-primary':'btn-outline'} onClick={()=>setView('workspace')}>Sidebar view</button>
+   <button type="button" aria-pressed={view==='list'} className={view==='list'?'btn-primary':'btn-outline'} onClick={()=>setView('list')}>List view</button>
+  </div>
+  {view==='workspace'?<StudyGuideWorkspace guides={guides}/>:<StudyGuideList guides={guides}/>}
+ </div>;
+}
+
+function StudyGuideList({guides}:{guides:StudyGuide[]}){
+
  const [query,setQuery]=useState('');
  const searching=Boolean(query.trim());
  const visible=filterStudyGuides(guides,'All',query);

@@ -1,0 +1,86 @@
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(225px, 280px) minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #dec7bd;
+  border-radius: 20px;
+  background: #fbf6ef;
+  min-height: 38rem;
+}
+
+.sidebar {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  background: #803f4b;
+  color: #fff9f2;
+  padding: 16px;
+}
+
+.sidebarTitle {
+  font-size: 1.55rem;
+  margin-bottom: 14px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #f6ded873;
+  border-radius: 10px;
+  background: #ffffff12;
+}
+
+.search input {
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+}
+
+.search input::placeholder {color: #f9e4dc}
+.topics {overflow-y: auto; max-height: min(65dvh, 44rem); margin-top: 14px}
+.volume + .volume {margin-top: 6px}
+
+.volumeButton, .sheet {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9px;
+  padding: 9px 10px;
+  text-align: left;
+  font-size: .875rem;
+}
+
+.volumeButton {
+  justify-content: space-between;
+  min-height: 44px;
+  font-weight: 700;
+  background: #ffffff10;
+}
+
+.volumeButton svg {flex: none}
+.volumeButton[aria-expanded='true'] svg {transform: rotate(180deg)}
+.volumeButton:hover, .sheet:hover {background: #ffffff25}
+.sheetList {padding: 4px 0 4px 8px}
+.sheet {align-items: baseline; min-height: 38px; overflow-wrap: anywhere}
+.sheet[aria-pressed='true'] {background: #fff9f2; color: #803f4b; font-weight: 700}
+.number {color: inherit; opacity: .8; flex: none; font-variant-numeric: tabular-nums}
+.emptyVolume {padding: 10px; font-size: .8125rem}
+.sidebar :is(button,input):focus-visible {outline-color: #fff9f2; outline-offset: -2px}
+.main {display: flex; min-width: 0; flex-direction: column; padding: clamp(12px, 2vw, 24px)}
+.previewHeader {display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px}
+.previewHeader h2, .emptyPreview h2 {font-size: clamp(1.25rem, 2vw, 1.8rem); overflow-wrap: anywhere}
+.sheetMeta {color: #765b51; font-size: .8125rem; margin-bottom: 4px}
+.actions {display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: .875rem}
+.preview {flex: 1; width: 100%; min-height: max(28rem, 60dvh); border: 1px solid #dec7bd; border-radius: 12px; background: #fff}
+.emptyPreview {display: grid; align-content: center; justify-items: center; flex: 1; min-height: 15rem; gap: 10px; text-align: center; padding: 20px}
+.emptyPreview svg {color: #8e4a55}
+
+@media (max-width: 1050px) {
+  .workspace {grid-template-columns: minmax(0, 1fr)}
+  .topics {max-height: 17rem}
+  .preview {min-height: 65dvh}
+}
