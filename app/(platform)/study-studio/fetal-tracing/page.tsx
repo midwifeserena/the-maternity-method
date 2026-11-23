@@ -12,14 +12,14 @@ export default function FetalTracingPage(){
    <p className="mt-3">Start the monitor and practice interpreting simulated fetal strips. Answers and scores aren’t saved.</p>
   </header>
   <FetalTracingPractice/>
-  <nav aria-label="Fetal tracing resources" className="flex flex-wrap items-center gap-3">
-   <Link className="btn-outline" href="/study-studio">All study tools</Link>
-   <p className="text-sm">For more fetal tracing practice, try the {' '}
-   <a className="inline-flex items-center gap-1 font-semibold text-mauve underline underline-offset-4 hover:text-espresso" href="https://ncc-efm.org/game/efmgame.cfm" target="_blank" rel="noopener noreferrer">
+  <aside aria-label="More fetal tracing practice" className="rounded-2xl bg-mauve px-5 py-6 text-center text-[#fff9f2]">
+   <p>For more fetal tracing practice, try the NCC EFM Tracing Game.</p>
+   <a className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#fff9f2] px-5 py-3 font-semibold text-mauve hover:bg-blush focus-visible:outline-[#fff9f2]"
+    href="https://ncc-efm.org/game/efmgame.cfm" target="_blank" rel="noopener noreferrer">
     NCC EFM Tracing Game <ExternalLink size={16} aria-hidden="true"/>
     <span className="sr-only"> (opens in a new tab)</span>
-   </a>.
-   </p>
-  </nav>
+   </a>
+  </aside>
+  <Link className="btn-outline inline-flex" href="/study-studio">All study tools</Link>
  </div>;
 }

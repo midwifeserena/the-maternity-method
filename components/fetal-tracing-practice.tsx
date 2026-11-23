@@ -152,7 +152,7 @@ function TracingChart({item,index,onMove,playbackSeconds,onSpeedChange}:{
 
 export function FetalTracingPractice(){
  const [index,setIndex]=useState(0);
- const [playbackSeconds,setPlaybackSeconds]=useState(playbackOptions[0]);
+ const [playbackSeconds,setPlaybackSeconds]=useState(40);
  const [selected,setSelected]=useState<Partial<Record<TracingField,string>>>({});
  const [revealed,setRevealed]=useState(false);
  const [finished,setFinished]=useState(false);
