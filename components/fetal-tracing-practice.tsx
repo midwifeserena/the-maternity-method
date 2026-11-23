@@ -9,8 +9,7 @@ import styles from './fetal-tracing-console.module.css';
 const heartTicks=[60,90,120,150,180,210];
 const activityTicks=[0,25,50,75,100];
 const duration=600;
-const playbackSeconds=20;
-const speed=duration/playbackSeconds;
+const playbackOptions=[20,40,60];
 const windowSeconds=180;
 const left=65;
 const width=810;
@@ -19,7 +18,14 @@ const heartY=(rate:number)=>224-(rate-60)*1.2;
 const activityY=(activity:number)=>348-activity*.9;
 const displayTime=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds)%60).padStart(2,'0')}`;
 
-function TracingChart({item,index,onMove}:{item:typeof practiceCases[number];index:number;onMove:(index:number)=>void}){
+function TracingChart({item,index,onMove,playbackSeconds,onSpeedChange}:{
+ item:typeof practiceCases[number];
+ index:number;
+ onMove:(index:number)=>void;
+ playbackSeconds:number;
+ onSpeedChange:(seconds:number)=>void;
+}){
+ const speed=duration/playbackSeconds;
  const id=useId();
  const [position,setPosition]=useState(0);
  const [playing,setPlaying]=useState(false);
@@ -45,7 +51,7 @@ function TracingChart({item,index,onMove}:{item:typeof practiceCases[number];ind
   }
   frame=requestAnimationFrame(advance);
   return ()=>cancelAnimationFrame(frame);
- },[playing]);
+ },[playing,speed]);
 
  function togglePlayback(){
   if(playing){setPlaying(false);return;}
@@ -124,6 +130,13 @@ function TracingChart({item,index,onMove}:{item:typeof practiceCases[number];ind
       <ChevronRight size={23} aria-hidden="true"/>
      </button>
     </div>
+    <label className="flex items-center gap-2 text-xs font-semibold">
+     Speed
+     <select className="min-h-9 rounded-md bg-[#fff9f2] px-2 text-espresso" value={playbackSeconds}
+      onChange={event=>onSpeedChange(Number(event.target.value))}>
+      {playbackOptions.map(seconds=><option key={seconds} value={seconds}>{seconds}s run</option>)}
+     </select>
+    </label>
     <p className="whitespace-nowrap text-xs tabular-nums">{displayTime(position)} / {displayTime(duration)}</p>
    </div>
   </div>
@@ -132,6 +145,7 @@ function TracingChart({item,index,onMove}:{item:typeof practiceCases[number];ind
 
 export function FetalTracingPractice(){
  const [index,setIndex]=useState(0);
+ const [playbackSeconds,setPlaybackSeconds]=useState(playbackOptions[0]);
  const [selected,setSelected]=useState<Partial<Record<TracingField,string>>>({});
  const [revealed,setRevealed]=useState(false);
  const [finished,setFinished]=useState(false);
@@ -158,7 +172,7 @@ export function FetalTracingPractice(){
     <RotateCcw size={17} aria-hidden="true"/> Practice again
    </button>
   </div>:<>
-   <TracingChart key={index} item={item} index={index} onMove={move}/>
+   <TracingChart key={index} item={item} index={index} onMove={move} playbackSeconds={playbackSeconds} onSpeedChange={setPlaybackSeconds}/>
    {item.context&&<p className="surface p-4">{item.context}</p>}
    <form className="space-y-5" onSubmit={event=>{
     event.preventDefault();
