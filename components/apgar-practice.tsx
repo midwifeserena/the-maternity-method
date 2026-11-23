@@ -37,11 +37,12 @@ export function ApgarPractice(){
  </section>;
 
  const time=minutes[assessment];
+ const respirationRate=item.respirationRates[assessment];
  const labored=assessment===0&&item.laboredFirstMinute===true;
  return <section aria-labelledby="apgar-case-title" className="space-y-5">
   <div className="overflow-hidden rounded-3xl border-2 border-rose bg-[#fff9f2] shadow-sm">
    <div className="grid items-stretch lg:grid-cols-2">
-    <ApgarWarmer key={`${index}-${assessment}`} labored={labored} findings={expected} heartRate={item.heartRates[assessment]} stimulus={stimulus}
+    <ApgarWarmer key={`${index}-${assessment}`} labored={labored} findings={expected} heartRate={item.heartRates[assessment]} respirationRate={respirationRate} stimulus={stimulus}
      onStimulate={()=>setStimulus(current=>current+1)}/>
     <div className="space-y-3 p-5 sm:p-7">
      <div className="flex flex-wrap items-center justify-between gap-2">
@@ -75,7 +76,7 @@ export function ApgarPractice(){
    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
     {apgarComponents.map(({label,criteria},component)=><fieldset key={label} className="surface min-w-0 px-4 pb-4 pt-2" disabled={checked}>
      <legend className="px-2 font-bold text-mauve">{label}</legend>
-     <p className="mb-3 min-h-10 text-sm" aria-live={label==='Grimace'?'polite':undefined}>{label==='Grimace'&&!stimulus&&!checked?'Check the response in the warmer':label==='Pulse'?`Heart rate: ${item.heartRates[assessment]} bpm`:criteria[expected[component]]}.{label==='Respiration'&&labored&&' The newborn has grunting on exhalation and inward pulling beneath the ribs with breaths.'}</p>
+     <p className="mb-3 min-h-10 text-sm" aria-live={label==='Grimace'?'polite':undefined}>{label==='Grimace'&&!stimulus&&!checked?'Check the response in the warmer':label==='Pulse'?`Heart rate: ${item.heartRates[assessment]} bpm`:criteria[expected[component]]}.{label==='Respiration'&&` Respiratory rate: ${respirationRate} breaths/min.`}{label==='Respiration'&&labored&&' The newborn has grunting on exhalation and inward pulling beneath the ribs with breaths.'}</p>
      <div className="flex flex-wrap gap-2">
       {apgarPoints.map(points=><label key={points} className="relative">
        <input className="peer sr-only" type="radio" name={label} value={points} required checked={choices[component]===points}

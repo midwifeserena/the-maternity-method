@@ -28,9 +28,10 @@ function weight(x:number,y:number,[cx,cy,rx,ry]:Region){
  return falloff*falloff;
 }
 
-export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,paused,labored}:{
+export function ApgarNewbornMotion({appearance,breathing,respirationRate,tone,response,stimulus,paused,labored}:{
  appearance:Points;
  breathing:Points;
+ respirationRate:number;
  tone:Points;
  response:Points;
  stimulus:number;
@@ -116,8 +117,10 @@ export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,
    if(now-lastDraw>=32){
     lastDraw=now;
     const t=phase.current;
-    const breathingMotion=breathing===2?(1-Math.cos(t*4.8))*6:
-     breathing===1?Math.max(0,Math.sin(t*4))*Math.max(0,Math.cos(t*2))*(labored?10:7):0;
+    const breathPhase=t*respirationRate*2*Math.PI/60;
+    const irregularity=breathing===1?.65*Math.sin(breathPhase*.5):0;
+    const rise=1-Math.cos(breathPhase+irregularity);
+    const breathingMotion=breathing===2?rise*6:breathing===1?rise*(labored?5:3.5):0;
     const limbMotion=tone===2?Math.sin(t*4.1)*6:0;
     const reflex=reaction.current>0?Math.sin(reaction.current/.9*Math.PI):0;
     for(const i of active){
@@ -146,7 +149,7 @@ export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,
   context.putImageData(base,0,0);
   if(!reducedMotion&&(!paused&&(breathing>0||tone===2)||reaction.current>0))request=requestAnimationFrame(draw);
   return ()=>cancelAnimationFrame(request);
- },[appearance,breathing,image,labored,paused,reducedMotion,response,stimulus,tone]);
+ },[appearance,breathing,image,labored,paused,reducedMotion,respirationRate,response,stimulus,tone]);
 
  return <canvas ref={canvas} width={width} height={height}
   className="block aspect-[3/2] w-full bg-[#ecd9d3] bg-cover bg-center"
