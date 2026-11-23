@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect,useId,useMemo,useRef,useState} from 'react';
-import {Activity,ArrowRight,Check,ChevronLeft,ChevronRight,Pause,Play,RotateCcw} from 'lucide-react';
+import {ArrowRight,Check,ChevronLeft,ChevronRight,Pause,Play,RotateCcw} from 'lucide-react';
 import {practiceCases,tracingAnswers,tracingFields,tracingSamples,type TracingField} from '@/lib/fetal-tracing';
 
 import styles from './fetal-tracing-console.module.css';
@@ -79,11 +79,8 @@ function TracingChart({item,index,onMove,playbackSeconds,onSpeedChange}:{
  const traceLeft=right-visibleWidth;
 
  return <div className={styles.console}>
-  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pt-4 pb-2 text-sm font-semibold text-white sm:px-7">
-   <span className="inline-flex items-center gap-2"><Activity size={18} aria-hidden="true"/> Fetal monitor</span>
-   <span>Strip {index+1} of {practiceCases.length} · {item.weeks} weeks</span>
-  </div>
-  <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_9.5rem] lg:p-6 lg:pt-3">
+  <div className={styles.layout}>
+   <div className={styles.display}>
    <div ref={chartWindow} className={`${styles.screen} min-w-0 overflow-x-auto`} tabIndex={0} role="region" aria-label="Fetal tracing chart. Scroll horizontally on narrow screens.">
     <svg viewBox="0 0 900 388" className="block w-full min-w-[580px]" role="img"
      aria-label="Fetal heart rate on top and uterine activity below, aligned on the same time axis.">
@@ -119,13 +116,19 @@ function TracingChart({item,index,onMove,playbackSeconds,onSpeedChange}:{
      </g>
     </svg>
    </div>
-   <div className={`${styles.controls} flex flex-wrap items-center justify-center gap-3 text-sm lg:flex-col`}>
-    <button type="button" className={`${styles.primary} inline-flex size-[4.5rem] shrink-0 flex-col items-center justify-center gap-1 rounded-full text-xs font-bold`}
-     onClick={togglePlayback}>
-     {playing?<Pause size={19} aria-hidden="true"/>:<Play size={19} aria-hidden="true"/>}
-     {playing?'Pause':'Start'}
-    </button>
-    <div role="group" aria-label="Browse strips" className="flex gap-1">
+    <div className={styles.footer}>
+    <p>Strip {index+1} of {practiceCases.length} <span className="whitespace-nowrap">· {item.weeks} weeks</span></p>
+    <span className="whitespace-nowrap tabular-nums">{displayTime(position)} / {displayTime(duration)}</span>
+    <label className="flex items-center gap-2 text-xs font-semibold">
+     Speed
+     <select className="min-h-9 rounded-full bg-[#fff9f2] px-2 text-espresso" value={playbackSeconds}
+      onChange={event=>onSpeedChange(Number(event.target.value))}>
+      {playbackOptions.map(seconds=><option key={seconds} value={seconds}>{seconds}s run</option>)}
+     </select>
+    </label>
+    </div>
+   </div>
+    <div role="group" aria-label="Browse strips" className={styles.arrows}>
      <button type="button" aria-label="Previous strip" title="Previous strip" disabled={index===0}
       className={`${styles.secondary} grid size-11 place-items-center rounded-l-xl rounded-r-sm`}
       onClick={()=>onMove(index-1)}>
@@ -137,16 +140,17 @@ function TracingChart({item,index,onMove,playbackSeconds,onSpeedChange}:{
       <ChevronRight size={23} aria-hidden="true"/>
      </button>
     </div>
-    <label className="flex items-center gap-2 text-xs font-semibold">
-     Speed
-     <select className="min-h-9 rounded-md bg-[#fff9f2] px-2 text-espresso" value={playbackSeconds}
-      onChange={event=>onSpeedChange(Number(event.target.value))}>
-      {playbackOptions.map(seconds=><option key={seconds} value={seconds}>{seconds}s run</option>)}
-     </select>
-    </label>
-    <p className="whitespace-nowrap text-xs tabular-nums">{displayTime(position)} / {displayTime(duration)}</p>
+   <div className={styles.start}>
+    <span className={styles.indicator} data-playing={playing} aria-hidden="true"/>
+    <button type="button" className={`${styles.primary} inline-flex size-16 lg:size-[4.5rem] shrink-0 flex-col items-center justify-center gap-1 rounded-full text-xs font-bold`}
+     onClick={togglePlayback}>
+     {playing?<Pause size={19} aria-hidden="true"/>:<Play size={19} aria-hidden="true"/>}
+     <span className="sr-only">{playing?'Pause':'Start'}</span>
+    </button>
+    <span aria-hidden="true" className="text-xs font-bold uppercase tracking-widest">{playing?'Pause':'Start'}</span>
    </div>
   </div>
+  <p className={styles.brand}>The Maternity Method</p>
  </div>;
 }
 
