@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import {createClient} from '@/lib/supabase/client';
 import Link from 'next/link';
-import {Activity,BookOpen,FileText,NotebookPen,PlayCircle} from 'lucide-react';
+import {Activity,Baby,BookOpen,FileText,NotebookPen,PlayCircle} from 'lucide-react';
 import {StudyGuideLibrary} from './study-guide-library';
 import {studyGuideCatalog} from '@/lib/study-guide-catalog.mjs';
 import {StudioNotebook} from './studio-notebook';
@@ -10,7 +10,7 @@ import {StudioAssets} from './studio-assets';
 import {FlashcardWorkspace} from './flashcard-workspace';
 import {StudioFlashcards} from './studio-flashcards';
 import './study-studio.css';
-const cards=[{title:'Notebook',href:'/study-studio/notebook',Icon:NotebookPen,text:'Draw, type, arrange images, and keep your own notes in one place.'},{title:'Flashcards',href:'/study-studio/flashcards',Icon:BookOpen,text:'Make your own cards, then flip, learn or test yourself. Course cards stay available.'},{title:'Video Lessons',href:'/video-lessons',Icon:PlayCircle,text:'Return to your maternity lessons and turn new ideas into personal notes.'},{title:'Study Sheets',href:'/study-studio/sheets',Icon:FileText,text:'Explore course cheat sheets or upload your own private PDFs, images and text.'},{title:'Fetal Tracing',href:'/study-studio/fetal-tracing',Icon:Activity,text:'Read simulated fetal monitor strips and check your interpretation.'}];
+const cards=[{title:'Notebook',href:'/study-studio/notebook',Icon:NotebookPen,text:'Draw, type, arrange images, and keep your own notes in one place.'},{title:'Flashcards',href:'/study-studio/flashcards',Icon:BookOpen,text:'Make your own cards, then flip, learn or test yourself. Course cards stay available.'},{title:'Video Lessons',href:'/video-lessons',Icon:PlayCircle,text:'Return to your maternity lessons and turn new ideas into personal notes.'},{title:'Study Sheets',href:'/study-studio/sheets',Icon:FileText,text:'Explore course cheat sheets or upload your own private PDFs, images and text.'},{title:'Fetal Tracing',href:'/study-studio/fetal-tracing',Icon:Activity,text:'Read simulated fetal monitor strips and check your interpretation.'},{title:'Apgar Simulator',href:'/study-studio/apgar',Icon:Baby,text:'Assess newborn findings and practice scoring Apgar at 1 and 5 minutes.'}];
 export function StudyStudio({section='home'}:{section?:string}){
  const [owner,setOwner]=useState<string|null>(null),[ready,setReady]=useState(false);
  useEffect(()=>{let active=true;let unsubscribe:(()=>void)|undefined;const db=createClient();db.auth.getUser().then(({data:{user}})=>{if(!active)return;setOwner(user?.id??null);setReady(true);const sub=db.auth.onAuthStateChange?.((_event,session)=>{if(active)setOwner(session?.user?.id??null)});unsubscribe=()=>sub?.data.subscription.unsubscribe();}).catch(()=>{if(active)setReady(true)});return()=>{active=false;unsubscribe?.()};},[]);
