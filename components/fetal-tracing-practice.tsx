@@ -6,6 +6,13 @@ import {practiceCases,tracingAnswers,tracingFields,tracingSamples,type TracingFi
 
 import styles from './fetal-tracing-console.module.css';
 
+const categoryLabels=new Map([
+ ['I','I – Normal'],
+ ['II','II – Indeterminate'],
+ ['III','III – Abnormal'],
+]);
+const choiceLabel=(field:TracingField,value:string)=>field==='category'?(categoryLabels.get(value)??value):value;
+
 const heartTicks=[60,90,120,150,180,210];
 const activityTicks=[0,25,50,75,100];
 const duration=600;
@@ -187,11 +194,11 @@ export function FetalTracingPractice(){
         <input className="peer sr-only" name={key} type="radio" value={option} required disabled={revealed}
          checked={selected[key]===option} onChange={()=>setSelected(previous=>({...previous,[key]:option}))}/>
         <span className={`flex min-h-10 items-center gap-1 rounded-md border border-rose/65 px-2 py-1.5 text-sm peer-focus-visible:ring-2 peer-focus-visible:ring-mauve peer-focus-visible:ring-offset-2 ${revealed&&answers[key]===option?'bg-[#e2eee3] font-semibold text-[#234b31]':selected[key]===option?'bg-mauve text-white':revealed?'bg-[#fff9f2]':'cursor-pointer bg-[#fff9f2] hover:bg-blush'}`}>
-         {revealed&&answers[key]===option&&<><Check size={15} aria-hidden="true"/><span className="sr-only">Correct answer</span></>}{option}
+         {revealed&&answers[key]===option&&<><Check size={15} aria-hidden="true"/><span className="sr-only">Correct answer</span></>}{choiceLabel(key,option)}
         </span>
        </label>)}
       </div>
-      {revealed&&<p className="mt-2 text-sm">{selected[key]===answers[key]?'Correct':`You chose ${selected[key]}`}</p>}
+      {revealed&&<p className="mt-2 text-sm">{selected[key]===answers[key]?'Correct':`You chose ${choiceLabel(key,selected[key]??'')}`}</p>}
      </fieldset>)}
     </div>
     {revealed?<div className="surface border-rose p-5">
