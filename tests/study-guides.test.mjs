@@ -1,36 +1,47 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,existsSync} from 'node:fs';
-import path from 'node:path';
+import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
 import ts from 'typescript';
-import {studyGuideCatalog,filterStudyGuides} from '../lib/study-guide-catalog.mjs';
+import {studyGuideBucket,studyGuideCatalog,studyGuideVolumes,filterStudyGuides} from '../lib/study-guide-catalog.mjs';
 
-test('all 19 catalog entries have unique titles, authenticated links, and bundled PDF bytes',()=>{
- assert.equal(studyGuideCatalog.length,19);assert.equal(new Set(studyGuideCatalog.map(g=>g.id)).size,19);assert.equal(new Set(studyGuideCatalog.map(g=>g.title)).size,19);
- for(const guide of studyGuideCatalog){assert.match(guide.filename,/^[a-z0-9-]+\.pdf$/);assert.equal(guide.file_url,'/api/study-guides/'+guide.slug);const file=new URL('../content/study-guides/'+guide.filename,import.meta.url);assert(existsSync(file));assert.equal(readFileSync(file).subarray(0,5).toString(),'%PDF-');}
+test('the seven volumes contain the 63 supplied sheets in learning order',()=>{
+ assert.deepEqual(studyGuideVolumes.map(v=>v.id),[1,2,3,4,5,6,7]);
+ assert.equal(studyGuideCatalog.length,63);
+ const numbers=studyGuideCatalog.map(g=>g.number);
+ assert.deepEqual(numbers,[...numbers].sort());
+ assert.equal(new Set(studyGuideCatalog.map(g=>g.id)).size,63);
+ assert.deepEqual(studyGuideVolumes.map(v=>studyGuideCatalog.filter(g=>g.volume===v.id).length),[22,25,16,0,0,0,0]);
+ for(const guide of studyGuideCatalog){
+  assert.match(guide.filename,/^[a-z0-9-]+\.pdf$/);
+  assert.equal(guide.file_url,'/api/study-guides/'+guide.slug);
+  assert.equal(guide.download_filename,guide.number+' '+guide.title+'.pdf');
+  assert.equal(guide.page_count,1);
+  assert.match(guide.sha256,/^[a-f0-9]{64}$/);
+ }
 });
-test('every replacement matches the uploaded original and has accurate file metadata',()=>{
- const manifest=JSON.parse(readFileSync(new URL('../content/study-guides/upload-manifest.json',import.meta.url),'utf8'));
- assert.equal(manifest.length,19);assert.equal(studyGuideCatalog.reduce((sum,g)=>sum+g.page_count,0),55);
- for(const guide of studyGuideCatalog){const entry=manifest.find(row=>row.slug===guide.slug);assert(entry);assert.equal(createHash('sha256').update(readFileSync(new URL('../content/study-guides/'+guide.filename,import.meta.url))).digest('hex'),entry.sha256);assert.equal(guide.page_count,entry.page_count);assert.equal(guide.download_filename,entry.source_filename);assert.match(guide.download_filename,/^[A-Za-z0-9_]+\.pdf$/);assert.equal(guide.draft,undefined);}
-});
-test('search and category work together, including cross-topic guides',()=>{
- assert.equal(filterStudyGuides(studyGuideCatalog,'All','preeclampsia').length,1);assert.equal(filterStudyGuides(studyGuideCatalog,'Postpartum','preeclampsia').length,1);assert.equal(filterStudyGuides(studyGuideCatalog,'Newborn','preeclampsia').length,0);
- assert.equal(filterStudyGuides(studyGuideCatalog,'Newborn','intraamniotic').length,1);assert.equal(filterStudyGuides(studyGuideCatalog,'All','does not exist').length,0);assert.equal(filterStudyGuides(studyGuideCatalog,'All','   ').length,19);assert.equal(filterStudyGuides(studyGuideCatalog,'All','NOWS').length,1);
+test('study sheet search matches both topic and sheet number',()=>{
+ assert.equal(filterStudyGuides(studyGuideCatalog,'All','preeclampsia').length,2);
+ assert.equal(filterStudyGuides(studyGuideCatalog,'All','2.25')[0].title,'Cardinal Movements');
+ assert.equal(filterStudyGuides(studyGuideCatalog,'All','does not exist').length,0);
+ assert.equal(filterStudyGuides(studyGuideCatalog,'All','   ').length,63);
 });
 function routeHarness({user={id:'student'},missing=false}={}){
  let reads=0;
  const exports={};const code=ts.transpileModule(readFileSync(new URL('../app/api/study-guides/[slug]/route.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
  class Response{constructor(body,options={}){this.body=body;this.status=options.status??200;this.headers=options.headers??{}}static json(body,options){return new Response(body,options)}}
  vm.runInNewContext(code,{exports,process:{cwd:()=>'/test'},Uint8Array,require(name){
-  if(name==='node:fs/promises')return{async readFile(file){reads++;assert.equal(path.basename(file),studyGuideCatalog[0].filename);if(missing)throw Error('missing');return new TextEncoder().encode('%PDF-test');}};
-  if(name==='node:path')return path;
+  if(name==='@/lib/supabase/admin')return{admin(){return{storage:{from(bucket){
+   assert.equal(bucket,studyGuideBucket);
+   return{async download(filename){
+    reads++;assert.equal(filename,studyGuideCatalog[0].filename);
+    return missing?{error:Error('missing')}:{data:new Blob(['%PDF-test'])};
+   }};
+  }}}}};
   if(name==='next/server')return{NextResponse:Response};
   if(name==='@/lib/supabase/server')return{async createClient(){return{auth:{async getUser(){return{data:{user}}}}}}};
-  if(name==='@/lib/study-guide-catalog.mjs')return{studyGuideCatalog};
+  if(name==='@/lib/study-guide-catalog.mjs')return{studyGuideCatalog,studyGuideBucket};
   throw Error('Unexpected module '+name);
  }});return{get:exports.GET,reads:()=>reads};
 }
@@ -59,6 +70,6 @@ function pageHarness(user){
  }});return{page:exports.default,Library};
 }
 test('Study Guides renders only the replacement collection and does not merge legacy database rows',async()=>{
- const h=pageHarness({id:'student'}),page=await h.page(),library=page.props.children.find(child=>child.type===h.Library);assert.equal(library.props.guides,studyGuideCatalog);assert.equal(library.props.guides.length,19);
+ const h=pageHarness({id:'student'}),page=await h.page(),library=page.props.children.find(child=>child.type===h.Library);assert.equal(library.props.guides,studyGuideCatalog);assert.equal(library.props.guides.length,63);
 });
 test('replacement Study Guides page still requires sign-in',async()=>{await assert.rejects(pageHarness(null).page(),/Redirect: \/login/)});
