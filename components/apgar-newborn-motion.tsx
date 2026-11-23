@@ -7,15 +7,16 @@ const width=720;
 const height=480;
 
 // Regions are normalized to the original overhead warmer image.
-const chest:Region=[.49,.39,.12,.155];
+const chest:Region=[.49,.385,.13,.173];
+const lowerRibs:Region[]=[[.435,.424,.058,.028],[.546,.424,.058,.028]];
 const face:Region=[.49,.171,.09,.10];
 const limbs:Region[]=[
  [.32,.482,.105,.17], [.66,.49,.105,.17],
  [.39,.782,.10,.20], [.59,.782,.10,.20],
 ];
 const extremities:Region[]=[
- [.283,.559,.039,.061], [.695,.572,.037,.059],
- [.423,.914,.052,.08], [.554,.917,.051,.081],
+ [.283,.559,.043,.066], [.695,.572,.044,.065],
+ [.423,.914,.060,.087], [.554,.917,.059,.089],
 ];
 const skinRegions:Region[]=[face,chest,[.49,.30,.114,.123],
  [.34,.451,.074,.141],[.636,.446,.077,.14],
@@ -27,13 +28,14 @@ function weight(x:number,y:number,[cx,cy,rx,ry]:Region){
  return falloff*falloff;
 }
 
-export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,paused}:{
+export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,paused,labored}:{
  appearance:Points;
  breathing:Points;
  tone:Points;
  response:Points;
  stimulus:number;
  paused:boolean;
+ labored:boolean;
 }){
  const canvas=useRef<HTMLCanvasElement>(null);
  const [image,setImage]=useState<HTMLImageElement|null>(null);
@@ -71,7 +73,9 @@ export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,
   const vertical=new Float32Array(width*height);
   const chestWeights=new Float32Array(width*height);
   const facialWeights=new Float32Array(width*height);
+  const retractions=new Float32Array(width*height);
   const active:number[]=[];
+  const tintRegions=appearance===0?skinRegions:extremities;
 
   for(let y=0;y<height;y++){
    for(let x=0;x<width;x++){
@@ -80,19 +84,19 @@ export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,
     if(nx<.21||nx>.77||ny<.05||ny>.99)continue;
     chestWeights[i]=weight(nx,ny,chest);
     facialWeights[i]=weight(nx,ny,face);
+    if(labored)retractions[i]=lowerRibs.reduce((sum,area)=>sum+weight(nx,ny,area),0);
     const a=weight(nx,ny,limbs[0])+weight(nx,ny,limbs[2]);
     const b=weight(nx,ny,limbs[1])+weight(nx,ny,limbs[3]);
     horizontal[i]=a-b;
     vertical[i]=a+b;
-    if(a||b||chestWeights[i]||facialWeights[i])active.push(i);
+    if(a||b||chestWeights[i]||facialWeights[i]||retractions[i])active.push(i);
 
-    const region=appearance===0?skinRegions:extremities;
     if(appearance===2)continue;
-    const tint=Math.min(1,region.reduce((sum,area)=>sum+weight(nx,ny,area),0));
+    const tint=Math.min(1,tintRegions.reduce((sum,area)=>sum+Math.sqrt(weight(nx,ny,area)),0));
     const offset=i*4;
-    pixels[offset]-=tint*(appearance===0?30:22);
-    pixels[offset+1]-=tint*5;
-    pixels[offset+2]+=tint*13;
+    pixels[offset]-=tint*(appearance===0?39:55);
+    pixels[offset+1]-=tint*(appearance===0?9:13);
+    pixels[offset+2]+=tint*(appearance===0?18:33);
    }
   }
 
@@ -112,19 +116,27 @@ export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,
    if(now-lastDraw>=32){
     lastDraw=now;
     const t=phase.current;
-    const breathingMotion=breathing===2?(1-Math.cos(t*4.8))*2.8:
-     breathing===1?Math.max(0,Math.sin(t*4))*Math.max(0,Math.cos(t*2))*3:0;
+    const breathingMotion=breathing===2?(1-Math.cos(t*4.8))*6:
+     breathing===1?Math.max(0,Math.sin(t*4))*Math.max(0,Math.cos(t*2))*(labored?10:7):0;
     const limbMotion=tone===2?Math.sin(t*4.1)*6:0;
     const reflex=reaction.current>0?Math.sin(reaction.current/.9*Math.PI):0;
     for(const i of active){
      const x=i%width,y=Math.floor(i/width);
-     const dx=horizontal[i]*(limbMotion+reflex*(response===2?10:0));
-     const dy=chestWeights[i]*breathingMotion+
+     const drawIn=retractions[i]*breathingMotion;
+     const dx=(x-width*chest[0])*chestWeights[i]*breathingMotion*.009+horizontal[i]*(limbMotion+reflex*(response===2?10:0));
+     const dy=chestWeights[i]*breathingMotion-drawIn*1.7+
       vertical[i]*(Math.abs(limbMotion)*.5+reflex*(response===2?6:0))+
       facialWeights[i]*reflex*(response===1?3:5);
      const sourceX=Math.max(0,Math.min(width-1,Math.round(x-dx)));
      const sourceY=Math.max(0,Math.min(height-1,Math.round(y-dy)));
-     output[i]=original[sourceY*width+sourceX];
+     const sourceIndex=sourceY*width+sourceX;
+     output[i]=original[sourceIndex];
+     if(drawIn>0){
+      const offset=i*4;
+      frame.data[offset]-=drawIn*3;
+      frame.data[offset+1]-=drawIn*3;
+      frame.data[offset+2]-=drawIn*2;
+     }
     }
     context?.putImageData(frame,0,0);
    }
@@ -134,7 +146,7 @@ export function ApgarNewbornMotion({appearance,breathing,tone,response,stimulus,
   context.putImageData(base,0,0);
   if(!reducedMotion&&(!paused&&(breathing>0||tone===2)||reaction.current>0))request=requestAnimationFrame(draw);
   return ()=>cancelAnimationFrame(request);
- },[appearance,breathing,image,paused,reducedMotion,response,stimulus,tone]);
+ },[appearance,breathing,image,labored,paused,reducedMotion,response,stimulus,tone]);
 
  return <canvas ref={canvas} width={width} height={height}
   className="block aspect-[3/2] w-full bg-[#ecd9d3] bg-cover bg-center"
