@@ -14,10 +14,12 @@ export default function FetalTracingPage(){
   <FetalTracingPractice/>
   <nav aria-label="Fetal tracing resources" className="flex flex-wrap items-center gap-3">
    <Link className="btn-outline" href="/study-studio">All study tools</Link>
-   <a className="btn-outline inline-flex items-center gap-2" href="https://ncc-efm.org/game/efmgame.cfm" target="_blank" rel="noopener noreferrer">
-    Open NCC’s game <ExternalLink size={16} aria-hidden="true"/>
+   <p className="text-sm">For more fetal tracing practice, try the {' '}
+   <a className="inline-flex items-center gap-1 font-semibold text-mauve underline underline-offset-4 hover:text-espresso" href="https://ncc-efm.org/game/efmgame.cfm" target="_blank" rel="noopener noreferrer">
+    NCC EFM Tracing Game <ExternalLink size={16} aria-hidden="true"/>
     <span className="sr-only"> (opens in a new tab)</span>
-   </a>
+   </a>.
+   </p>
   </nav>
  </div>;
 }
