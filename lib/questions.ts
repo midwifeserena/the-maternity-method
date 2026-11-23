@@ -1,3 +1,5 @@
-export type Category='Antepartum'|'Intrapartum'|'Postpartum'|'Newborn'|'Pediatrics';
+import {questionBankSubjects} from './question-bank-subjects.mjs';
+
+export type Category=typeof questionBankSubjects[number];
 export type Question={id:string;category:Category;type:'single'|'sata'|'matrix';matrix_mode?:'single'|'multiple';bank_section?:'standard'|'ngn';ngn_format?:string|null;ngn_config?:Record<string,any>;stem:string;case_context?:{case_id:string;case_number:number;item_id:string;item_number:number;item_count:number};clinical_scenario?:string;content_format?:'plain'|'markdown';options:{id:string;label:string;images?:{url:string;alt:string}[]}[];matrix_rows?:{id:string;label:string}[];chart?:Record<string,string>;images?:{url:string;alt:string}[];points?:number};
-export const categories:Category[]=['Antepartum','Intrapartum','Postpartum','Newborn','Pediatrics'];
+export const categories:Category[]=[...questionBankSubjects];
