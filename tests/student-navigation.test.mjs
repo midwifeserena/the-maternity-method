@@ -29,7 +29,7 @@ test('deep-linked exam reviews expand Question Bank and mark Previous Exams curr
  assert(markup.includes('Create Exam'));assert(markup.includes('NGN Case Studies'));assert(markup.includes('Previous Exams'));assert(markup.includes('Performance'));
 });
 test('Study Studio groups personal tools and keeps course resource deep links current',()=>{
- for(const path of ['/study-studio/notebook','/study-studio/fetal-tracing','/study-studio/apgar','/flashcards','/study-guides','/video-lessons']){const markup=sidebarMarkup(path,false);assert(markup.includes('Study Studio'));assert(!markup.includes('id="study-studio-submenu" hidden'));for(const label of ['Notebook','Flashcards','Video Lessons','Study Sheets','Fetal Tracing','Apgar Simulator'])assert(markup.includes(label));assert(!markup.includes('Admin Questions'));assert(!markup.includes('/study-studio/podcast'));}
+ for(const path of ['/study-studio/notebook','/study-studio/fetal-tracing','/study-studio/apgar','/study-studio/newborn-assessment','/flashcards','/study-guides','/video-lessons']){const markup=sidebarMarkup(path,false);assert(markup.includes('Study Studio'));assert(!markup.includes('id="study-studio-submenu" hidden'));for(const label of ['Notebook','Flashcards','Video Lessons','Study Sheets','Fetal Tracing','Apgar Simulator','Newborn Assessment'])assert(markup.includes(label));assert(!markup.includes('Admin Questions'));assert(!markup.includes('/study-studio/podcast'));}
 });
 test('Create Exam is the shared Question Bank entry for all subjects',()=>{
  const markup=sidebarMarkup('/create-exam',false);
