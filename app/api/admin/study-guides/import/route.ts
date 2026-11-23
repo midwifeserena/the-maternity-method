@@ -42,6 +42,6 @@ export async function POST(request:Request){
   }
   return NextResponse.json({uploaded:sheets.length},{headers});
  }catch{
-  return NextResponse.json({error:'The upload could not finish. Retry with the same ZIP to finish the remaining sheets.'},{status:503,headers});
+  return NextResponse.json({error:'The upload could not finish. Retry with the same files to finish the remaining sheets.'},{status:503,headers});
  }
 }
