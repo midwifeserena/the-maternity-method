@@ -73,20 +73,48 @@ export function ApgarPractice(){
    setChecked(true);
    requestAnimationFrame(()=>result.current?.focus());
   }}>
-   <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
-    {apgarComponents.map(({label,criteria},component)=><fieldset key={label} className="surface min-w-0 px-4 pb-4 pt-2" disabled={checked}>
-     <legend className="px-2 font-bold text-mauve">{label}</legend>
-     <p className="mb-3 min-h-10 text-sm" aria-live={label==='Grimace'?'polite':undefined}>{label==='Grimace'&&!stimulus&&!checked?'Check the response in the warmer':label==='Pulse'?`Heart rate: ${item.heartRates[assessment]} bpm`:criteria[expected[component]]}.{label==='Respiration'&&` Respiratory rate: ${respirationRate} breaths/min.`}{label==='Respiration'&&labored&&' The newborn has grunting on exhalation and inward pulling beneath the ribs with breaths.'}</p>
-     <div className="flex flex-wrap gap-2">
-      {apgarPoints.map(points=><label key={points} className="relative">
-       <input className="peer sr-only" type="radio" name={label} value={points} required checked={choices[component]===points}
-        onChange={()=>setChoices(current=>({...current,[component]:points}))}/>
-       <span className={`grid size-11 place-items-center rounded-lg border border-rose font-semibold peer-focus-visible:ring-2 peer-focus-visible:ring-mauve ${checked&&expected[component]===points?'bg-[#e2eee3] text-[#234b31]':choices[component]===points?'bg-mauve text-white':checked?'':'cursor-pointer hover:bg-blush'}`}>{points}</span>
-      </label>)}
-     </div>
-     {checked&&<p className="mt-3 text-sm">Correct score: {expected[component]}{choices[component]===expected[component]?'':` · You chose ${choices[component]}`}{label==='Pulse'&&<span className="mt-1 block">{criteria[expected[component]]}</span>}</p>}
-    </fieldset>)}
-   </div>
+   <section className="surface overflow-hidden border-rose" aria-labelledby="apgar-scoring-title">
+    <div className="px-4 py-4 sm:px-5">
+     <h3 id="apgar-scoring-title" className="text-xl">Apgar scoring</h3>
+     <p className="mt-1 text-sm">Choose the criterion that best matches the newborn’s finding in each row.</p>
+    </div>
+    <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1.15fr)_repeat(3,minmax(0,1fr))] gap-3 bg-mauve px-5 py-3 text-sm font-semibold text-white lg:grid">
+     <span>Component &amp; finding</span>
+     {apgarPoints.map(points=><span key={points}>{points} {points===1?'point':'points'}</span>)}
+    </div>
+    {apgarComponents.map(({label,criteria},component)=>{
+     const correct=expected[component];
+     const selected=choices[component];
+     const finding=label==='Grimace'&&!stimulus&&!checked?'Check the response in the warmer'
+      :label==='Pulse'?`Heart rate: ${item.heartRates[assessment]} bpm`:criteria[correct];
+
+     return <fieldset key={label} className="min-w-0 border-t border-rose/45 px-4 py-3 sm:px-5" disabled={checked}>
+      <legend className="sr-only">{label}</legend>
+      <div className="grid gap-2 lg:grid-cols-[minmax(0,1.15fr)_repeat(3,minmax(0,1fr))] lg:gap-3">
+       <div className="py-1">
+        <p aria-hidden="true" className="font-bold text-mauve">{label}</p>
+        <p className="mt-1 text-sm" aria-live={label==='Grimace'?'polite':undefined}>
+         {finding}.{label==='Respiration'&&` Respiratory rate: ${respirationRate} breaths/min.`}
+         {label==='Respiration'&&labored&&' The newborn has grunting on exhalation and inward pulling beneath the ribs with breaths.'}
+        </p>
+       </div>
+       {apgarPoints.map(points=><label key={points} className="relative min-w-0">
+        <input className="peer sr-only" type="radio" name={label} value={points} required checked={selected===points}
+         onChange={()=>setChoices(current=>({...current,[component]:points}))}/>
+        <span className={`flex h-full min-h-11 flex-wrap content-center items-baseline gap-x-2 gap-y-1 rounded-lg border border-rose/70 px-3 py-2 text-sm peer-focus-visible:ring-2 peer-focus-visible:ring-mauve peer-focus-visible:ring-offset-2 ${checked&&correct===points?'bg-[#e2eee3] font-semibold text-[#234b31]':selected===points?'bg-mauve font-semibold text-white':checked?'bg-[#fff9f2]':'cursor-pointer bg-[#fff9f2] hover:bg-blush'}`}>
+         <strong className="lg:sr-only">{points} {points===1?'point':'points'}</strong>
+         <span>{criteria[points]}</span>
+         {checked&&correct===points&&<span className="w-full text-xs font-bold">Correct match</span>}
+        </span>
+       </label>)}
+       {checked&&<p className="text-sm lg:col-span-4">
+        <strong>{correct} {correct===1?'point':'points'}</strong> for {label.toLowerCase()} because the finding matches “{criteria[correct].toLowerCase()}.”
+        {selected!==correct&&` You chose ${selected}.`}
+       </p>}
+      </div>
+     </fieldset>;
+    })}
+   </section>
    {checked?<div className="surface space-y-3 border-rose p-5">
     <h3 ref={result} tabIndex={-1} className="text-xl">{time}-minute Apgar: {total(expected)} out of 10</h3>
     <p>Your total: {total(apgarComponents.map((_,component)=>choices[component]??0))} out of 10. The Apgar score is the sum of all five component scores.</p>
