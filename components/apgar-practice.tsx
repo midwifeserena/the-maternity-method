@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import {ApgarWarmer} from './apgar-warmer';
 import {useRef,useState} from 'react';
 import {ArrowRight,RotateCcw} from 'lucide-react';
 import {apgarCases,apgarComponents,apgarPoints} from '@/lib/apgar-practice';
@@ -13,6 +13,7 @@ export function ApgarPractice(){
  const [assessment,setAssessment]=useState<0|1>(0);
  const [choices,setChoices]=useState<Partial<Record<number,number>>>({});
  const [checked,setChecked]=useState(false);
+ const [stimulus,setStimulus]=useState(0);
  const heading=useRef<HTMLHeadingElement>(null);
  const result=useRef<HTMLHeadingElement>(null);
  const item=apgarCases[index];
@@ -23,6 +24,7 @@ export function ApgarPractice(){
   setAssessment(nextAssessment);
   setChoices({});
   setChecked(false);
+  setStimulus(0);
   requestAnimationFrame(()=>heading.current?.focus());
  }
 
@@ -38,17 +40,14 @@ export function ApgarPractice(){
  return <section aria-labelledby="apgar-case-title" className="space-y-5">
   <div className="overflow-hidden rounded-3xl border-2 border-rose bg-[#fff9f2] shadow-sm">
    <div className="grid items-stretch lg:grid-cols-2">
-    <figure className="relative min-h-56 overflow-hidden bg-blush sm:min-h-72">
-     <Image src="/apgar-newborn-warmer.webp" alt="Newborn resting in a radiant warmer"
-      fill className="object-cover object-center" sizes="(min-width: 1024px) 50vw, 100vw"/>
-     <figcaption className="absolute bottom-3 left-3 rounded-full bg-[#fff9f2] px-3 py-1 text-xs font-semibold text-espresso">Warmer illustration</figcaption>
-    </figure>
+    <ApgarWarmer findings={expected} heartRate={item.heartRates[assessment]} stimulus={stimulus}
+     onStimulate={()=>setStimulus(current=>current+1)}/>
     <div className="space-y-3 p-5 sm:p-7">
      <p className="text-xs font-bold uppercase tracking-widest text-mauve">Case {index+1} of {apgarCases.length}</p>
      <h2 id="apgar-case-title" ref={heading} tabIndex={-1} className="text-2xl">{item.title}</h2>
      <p>{item.description}</p>
      <p className="pill inline-block">{time}-minute assessment</p>
-     <p className="text-sm">Score the documented findings below. Select 0, 1, or 2 points for each component.</p>
+     <p className="text-sm">Observe the newborn and check the response to stimulation. Then select 0, 1, or 2 points for each finding.</p>
     </div>
    </div>
   </div>
@@ -61,7 +60,7 @@ export function ApgarPractice(){
    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
     {apgarComponents.map(({label,criteria},component)=><fieldset key={label} className="surface min-w-0 px-4 pb-4 pt-2" disabled={checked}>
      <legend className="px-2 font-bold text-mauve">{label}</legend>
-     <p className="mb-3 min-h-10 text-sm">{label==='Pulse'?`Heart rate: ${item.heartRates[assessment]} bpm`:criteria[expected[component]]}.</p>
+     <p className="mb-3 min-h-10 text-sm" aria-live={label==='Grimace'?'polite':undefined}>{label==='Grimace'&&!stimulus?'Check the response in the warmer':label==='Pulse'?`Heart rate: ${item.heartRates[assessment]} bpm`:criteria[expected[component]]}.</p>
      <div className="flex flex-wrap gap-2">
       {apgarPoints.map(points=><label key={points} className="relative">
        <input className="peer sr-only" type="radio" name={label} value={points} required checked={choices[component]===points}
@@ -79,7 +78,7 @@ export function ApgarPractice(){
      onClick={()=>assessment===0?move(index,1):move(index+1,0)}>
      {assessment===0?'Go to 5-minute assessment':index===apgarCases.length-1?'Finish practice':'Next newborn'} <ArrowRight size={17} aria-hidden="true"/>
     </button>
-   </div>:<button className="btn-primary" type="submit" disabled={Object.keys(choices).length<apgarComponents.length}>Check Apgar score</button>}
+   </div>:<button className="btn-primary" type="submit" disabled={!stimulus||Object.keys(choices).length<apgarComponents.length}>Check Apgar score</button>}
   </form>
  </section>;
 }
